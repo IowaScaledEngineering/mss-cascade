@@ -7,9 +7,9 @@ N 46800 59000 46800 58800 4
 N 46800 59900 46800 60100 4
 N 48800 60100 50900 60100 4
 T 66900 39100 9 10 1 0 0 0 1
-MRBus 4 Channel DCC Block Detector 3
+Free-mo MSS-Compatible Intregrated Cascade Module
 T 66700 38800 9 10 1 0 0 0 1
-mrb-bd42.sch
+mss-cascade.sch
 T 66900 38500 9 10 1 0 0 0 1
 1
 T 68400 38500 9 10 1 0 0 0 1
