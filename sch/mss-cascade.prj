@@ -1,4 +1,4 @@
-schematics mss-cascade.prj
+schematics mss-cascade.sch
 output-name ../pcb/mss-cascade
 skip-m4
 elements-dir ../../ise-footprints
