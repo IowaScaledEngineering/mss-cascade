@@ -39,14 +39,15 @@ PROGRAMMER_TYPE=usbtiny
 PROGRAMMER_PORT=usb
 
 DEFINES = 
-SRCS = $(BASE_NAME).c
+SRCS = $(BASE_NAME).c detectors.c mss-codeline.c indicators.c
+INCS = mss-cascade.h
 
 AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B2
 AVRDUDE_SLOW = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B32
 
 OBJS = ${SRCS:.c=.o}
 INCLUDES = -I. 
-CFLAGS  = $(INCLUDES) -Wall -O2 -std=gnu99
+CFLAGS  = $(INCLUDES) -Wall -O2 -std=gnu99 -fshort-enums
 #ASFLAGS = -ffunction-sections -fdata-sections
 #LDFLAGS = -Wl,-gc-sections
 
@@ -108,7 +109,7 @@ clean:
 
 # file targets:
 
-$(BASE_NAME).elf: $(OBJS)
+$(BASE_NAME).elf: $(OBJS) $(SRCS) $(INCS)
 	$(COMPILE) -o $(BASE_NAME).elf $(OBJS)
 
 $(BASE_NAME).hex: $(BASE_NAME).elf

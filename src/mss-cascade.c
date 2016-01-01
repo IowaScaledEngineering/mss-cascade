@@ -3,92 +3,9 @@
 #include <avr/eeprom.h>
 #include <util/delay.h>
 #include <avr/wdt.h>
-
-#define CHANNEL0_ON_DELAY   0x00
-#define CHANNEL0_OFF_DELAY  0x01
+#include "mss-cascade.h"
 
 volatile uint8_t eventFlags = 0;
-#define EVENT_DO_BD_READ 0x01
-#define EVENT_DO_ADC_RUN 0x02
-#define EVENT_1HZ_BLINK  0x04
-
-uint8_t detectorOnDelayCount = 0;
-uint8_t detectorOffDelayCount = 0;
-uint8_t detectorOnDelay = 4;
-uint8_t detectorOffDelay = 25;
-
-volatile uint16_t adcValue[6];
-#define ADC_CHANNEL_SETPOINT_0  0
-#define ADC_CHANNEL_SETPOINT_1  1
-#define ADC_CHANNEL_DETECTOR_0  2
-#define ADC_CHANNEL_DETECTOR_1  3
-#define ADC_CHANNEL_REDGRN_A    4
-#define ADC_CHANNEL_REDGRN_B    5
-
-void initializeADC()
-{
-	for(uint8_t i=0; i<sizeof(adcValue)/sizeof(adcValue[0]); i++)
-		adcValue[i] = 0;
-
-	// Setup ADC for bus voltage monitoring
-	ADMUX  = 0x40;  // AVCC reference, ADC0 starting channel
-	ADCSRA = _BV(ADIF) | _BV(ADPS2) | _BV(ADPS1); // 64 prescaler, ~8.3kconv / s
-	ADCSRB = 0x00; // Free running mode
-	DIDR0  = 0x03;  // Turn ADC pins 0-1 into analog inputs
-	ADCSRA |= _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
-}
-
-
-void initializeDelays()
-{
-	detectorOnDelay = eeprom_read_byte((uint8_t*)(CHANNEL0_ON_DELAY));
-	if (0xFF == detectorOnDelay || 0x00 == detectorOnDelay)
-	{
-		eeprom_write_byte((uint8_t*)(CHANNEL0_ON_DELAY), 4);
-		detectorOnDelay = eeprom_read_byte((uint8_t*)(CHANNEL0_ON_DELAY));
-	}	
-
-
-	detectorOffDelay = eeprom_read_byte((uint8_t*)(CHANNEL0_OFF_DELAY));
-	if (0xFF == detectorOffDelay || 0x00 == detectorOffDelay)
-	{
-		eeprom_write_byte((uint8_t*)(CHANNEL0_OFF_DELAY), 25);
-		detectorOffDelay = eeprom_read_byte((uint8_t*)(CHANNEL0_OFF_DELAY));
-	}	
-
-
-}
-
-ISR(ADC_vect)
-{
-	static uint8_t workingChannel = 0;
-	static uint16_t accumulator = 0;
-	static uint8_t count = 0;
-	
-	accumulator += ADC;
-	if (++count >= 64)
-	{
-		adcValue[workingChannel] = accumulator / 64;
-		accumulator = 0;
-		count = 0;
-		workingChannel++;
-		
-		ADMUX = (ADMUX & 0xF0) | (workingChannel & 0x01);
-		
-		if (2 == workingChannel)
-		{
-			workingChannel = 0;
-			eventFlags |= EVENT_DO_BD_READ;
-		}
-	}
-
-	if (0 == (eventFlags & EVENT_DO_BD_READ))
-	{
-		// Trigger the next conversion.  Not using auto-trigger so that we can safely change channels
-		ADCSRA |= _BV(ADSC);
-	}
-}
-
 
 void initialize10HzTimer()
 {
@@ -114,6 +31,198 @@ ISR(TIMER1_COMPA_vect)
 	}
 }
 
+
+void initialize4000HzTimer()
+{
+	// Set up timer 2 for 4000Hz interrupts
+	TCNT2 = 0;
+	OCR2A = 0x7E;
+	TCCR2A = _BV(WGM21) | _BV(CS21) | _BV(CS20);
+	TIFR2 |= _BV(OCF2A);
+	TIMSK2 |= _BV(OCIE2A);
+}
+
+SignalHeadType SignalHeadTypeA1 = SIGNAL_3LIGHT_CA;
+SignalHeadType SignalHeadTypeA2 = SIGNAL_3LIGHT_CA;
+SignalHeadType SignalHeadTypeB1 = 0;
+SignalHeadType SignalHeadTypeB2 = 0;
+
+
+SignalAspect signalAspectA1 = ASPECT_FL_YELLOW;
+SignalAspect signalAspectA2 = ASPECT_OFF;
+SignalAspect signalAspectB1 = ASPECT_OFF;
+SignalAspect signalAspectB2 = ASPECT_OFF;
+
+
+/*
+	// Pin Assignments for PORTD/DDRD
+	//  PD0 - N/C
+	//  PD1 - A Green 1  (out)
+	//  PD2 - A Yellow 1 (out)
+	//  PD3 - A Red 1    (out)
+	//  PD4 - A Green 2  (out)
+	//  PD5 - A Yellow 2 (out)
+	//  PD6 - A Red 2    (out)
+	//  PD7 - B Red 1    (out)
+	DDRD  = 0b11111111;
+	PORTD = 0b00000000;
+
+	// Pin Assignments for PORTE/DDRE
+	//  PE0 - RX (N/C)
+	//  PE1 - TX (N/C)
+	//  PE2 - N/C
+	//  PE3 - B Green 1  (out)
+	//  PE4 - SCL (in)
+	//  PE5 - SDA (in)
+	//  PE6 - B Yellow 1 (out)
+	//  PE7 - B Green 2  (out)
+	DDRE  = 0b11001111;
+	PORTE = 0b00000000;
+	
+	// Pin Assignments for PORTE/DDRE
+	//  PF0 - Analog 0 - Setpoint 1
+	//  PF1 - Analog 1 - Setpoint 2
+	//  PF2 - Analog 2 - Detector 1
+	//  PF3 - Analog 3 - Detector 2
+	//  PF4 - Analog 4 - A Red/Green balance
+	//  PF5 - Analog 5 - B Red/Green balance
+	//  PF6 - B Yellow 2 (out)
+	//  PF7 - B Red 2    (out)
+	DDRF  = 0b11000000;
+	PORTF = 0b00000000;
+*/
+
+#define SIGA1_RED_PD  PD3
+#define SIGA1_YEL_PD  PD2
+#define SIGA1_GRN_PD  PD1
+
+
+void setSignalA1(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca)
+{
+	uint8_t mask = ((red?_BV(SIGA1_RED_PD):0) | (yellow?_BV(SIGA1_YEL_PD):0) | (green?_BV(SIGA1_GRN_PD):0));
+	if (ca)
+		PORTD = (PORTD | (_BV(SIGA1_RED_PD) | _BV(SIGA1_YEL_PD) | _BV(SIGA1_GRN_PD))) & ~mask;
+	else
+		PORTD = (PORTD & ~(_BV(SIGA1_RED_PD) | _BV(SIGA1_YEL_PD) | _BV(SIGA1_GRN_PD))) | mask;
+}
+
+
+#define SIGA2_RED_PD  PD6
+#define SIGA2_YEL_PD  PD5
+#define SIGA2_GRN_PD  PD4
+
+void setSignalA2(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca)
+{
+	uint8_t mask = ((red?_BV(SIGA2_RED_PD):0) | (yellow?_BV(SIGA2_YEL_PD):0) | (green?_BV(SIGA2_GRN_PD):0));
+	if (ca)
+		PORTD = (PORTD | (_BV(SIGA2_RED_PD) | _BV(SIGA2_YEL_PD) | _BV(SIGA2_GRN_PD))) & ~mask;
+	else
+		PORTD = (PORTD & ~(_BV(SIGA2_RED_PD) | _BV(SIGA2_YEL_PD) | _BV(SIGA2_GRN_PD))) | mask;
+}
+
+
+ISR(TIMER2_COMP_vect)
+{
+	uint8_t commonAnode = 0;
+	// This is where signal output generation is handled.  
+
+	switch(SignalHeadTypeA1)
+	{
+		case SIGNAL_3LIGHT_CA:
+			commonAnode = 1;
+		case SIGNAL_3LIGHT_CC:
+			switch(signalAspectA1)
+			{
+				case ASPECT_RED:
+					setSignalA1(1,0,0, commonAnode);
+					break;
+				case ASPECT_YELLOW:
+					setSignalA1(0,1,0, commonAnode);				
+					break;
+				case ASPECT_GREEN:
+					setSignalA1(0,0,1, commonAnode);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalA1((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalA1(0,(eventFlags & EVENT_1HZ_BLINK),0, commonAnode);				
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalA1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);				
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalA1(0,0,0, commonAnode);
+					break;
+			}
+			break;
+
+		default:
+			setSignalA1(0,0,0, commonAnode);
+			break;		
+	}
+
+	commonAnode = 0;
+
+	switch(SignalHeadTypeA2)
+	{
+		case SIGNAL_3LIGHT_CA:
+			commonAnode = 1;		
+		case SIGNAL_3LIGHT_CC:
+			switch(signalAspectA2)
+			{
+				case ASPECT_RED:
+					setSignalA2(1,0,0, commonAnode);
+					break;
+				case ASPECT_YELLOW:
+					setSignalA2(0,1,0, commonAnode);				
+					break;
+				case ASPECT_GREEN:
+					setSignalA2(0,0,1, commonAnode);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalA2((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalA2(0,(eventFlags & EVENT_1HZ_BLINK),0, commonAnode);				
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalA2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);				
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalA2(0,0,0, commonAnode);
+					break;			
+
+			}		
+			break;
+
+		default:
+			setSignalA2(0,0,0, commonAnode);
+			break;			
+		
+	}
+
+	switch(SignalHeadTypeB1)
+	{
+		case SIGNAL_3LIGHT_CA:
+		case SIGNAL_3LIGHT_CC:
+		default:
+			break;
+	}
+
+	switch(SignalHeadTypeB1)
+	{
+		case SIGNAL_3LIGHT_CA:
+		case SIGNAL_3LIGHT_CC:
+		default:
+			break;
+	}
+
+}
+
+
 uint8_t debounceInputs(uint8_t* ioState, uint8_t rawInput)
 {
 	//  Bit 0 - PD0 - Lock/Manual Control switch (in, needs pullup on)
@@ -133,120 +242,13 @@ uint8_t debounceInputs(uint8_t* ioState, uint8_t rawInput)
 	return(changes);
 }
 
-uint8_t detectorStatus = 0;
-
-void processDetector(void)
-{	
-	uint16_t threshold = adcValue[ADC_CHANNEL_SETPOINT_0];
-
-	// Introduce a bit of hysteresis. 
-	// If the channel is currently "on", lower the threshold by 5 counts
-	// If the channel is currently "off", raise the threshold by 5
-	if ((0 != detectorStatus) && (threshold >= 5))
-	{
-		threshold -= 5;
-	} 
-	else if ((0 == detectorStatus) && (threshold <= (1023-5)) )
-	{
-		threshold += 5;
-	}
-	
-	if (adcValue[ADC_CHANNEL_DETECTOR_0] > threshold)
-	{
-		// Current for the channel has exceeded threshold
-		if (0 == detectorStatus)
-		{
-			// Channel is currently in a non-detecting state
-			// Wait for the turnon delay before actually indicating on
-			if (detectorOnDelayCount < detectorOnDelay)
-				detectorOnDelayCount++;
-			else
-			{
-				detectorStatus = 1;
-				detectorOffDelayCount = 0;
-			}
-		} else {
-			// Channel is currently in a detecting state
-			detectorOffDelayCount = 0;
-		}
-	} else {
-		// Current for the channel is under the threshold value
-		if (0 != detectorStatus)
-		{
-			// Channel is currently in a non-detecting state
-			if (detectorOffDelayCount < detectorOffDelay)
-				detectorOffDelayCount++;
-			else
-			{
-				detectorStatus = 0;
-				detectorOnDelayCount = 0;
-			}
-		} else {
-			// Channel is currently in a detecting state
-			detectorOnDelayCount = 0;
-		}
-	}
-}
-
-void setOccupancyAOn()
-{
-	PORTG |= _BV(PG0);
-}
-
-void setOccupancyAOff()
-{
-	PORTG &= ~_BV(PG0);
-}
-
-void setOccupancyBOn()
-{
-	PORTG |= _BV(PG1);
-}
-
-void setOccupancyBOff()
-{
-	PORTG &= ~_BV(PG1);
-}
-
-void setOccupancyALEDOn()
-{
-	PORTB |= _BV(PB5);
-}
-
-void setOccupancyALEDOff()
-{
-	PORTB &= ~_BV(PB5);
-}
-
-void setOccupancyBLEDOn()
-{
-	PORTB |= _BV(PB4);
-}
-
-void setOccupancyBLEDOff()
-{
-	PORTB &= ~_BV(PB4);
-}
-
-void setAuxLEDOn()
-{
-	PORTB |= _BV(PB6);
-}
-
-void setAuxLEDOff()
-{
-	PORTB &= ~_BV(PB6);
-}
-
-void setOccupancyIRLEDOn()
-{
-	PORTB |= _BV(PB7);
-}
-
-void setOccupancyIRLEDOff()
-{
-	PORTB &= ~_BV(PB7);
-}
+/*
+Basic algorithm:
+ - Do detection, set detector outputs
+ - Get codeline status
+ - Translate codeline to aspect
+ - Translate aspect to physical signals
+*/
 
 
 int main(void)
@@ -344,9 +346,7 @@ int main(void)
 	//  PG6 - N/C (doesn't exist)
 	//  PG7 - N/C (doesn't exist)
 	DDRG  = 0b00000011;
-	PORTG = 0b00000100;
-
-
+	PORTG = 0b00011100;
 
 	
 	setOccupancyAOff();
@@ -358,37 +358,88 @@ int main(void)
 	setAuxLEDOff();
 
 	initialize10HzTimer();
-	initializeADC();
-	initializeDelays();
+	initialize4000HzTimer();
 
+	initializeDetectors();
+	
 	sei();
 
 	while(1)
 	{
 		wdt_reset();
 
-		setAuxLEDOn();
+		processMSSCodeline();
 
-
-/*
+		switch(codeLineB)
+		{
+			case INDICATION_APPROACH_DIVERGING:
+			case INDICATION_ADVANCE_APPROACH:
+				signalAspectA1 = ASPECT_FL_YELLOW;
+				break;
+			case INDICATION_APPROACH:
+				signalAspectA1 = ASPECT_YELLOW;
+				break;
+			case INDICATION_CLEAR:
+				signalAspectA1 = ASPECT_GREEN;
+				break;
+			case INDICATION_STOP:
+			default:
+				signalAspectA1 = ASPECT_RED;
+		}
 
 		// If all the analog inputs have been read, the flag will be set and we
 		// can then process the analog detector inputs
 		if (eventFlags & EVENT_DO_BD_READ)
 		{
+			setAuxLED(BLINK);
+			
 			// Do all the analog magic
-			processDetector();
+			processDetectors();
 
-			// Read the auxilliary occupancy input
-			// It's inverted, so flip the bit around so that auxDetectInputState is
+			// Read the auxilliary occupancy inputs
+			// Both are inverted, so flip the bit around so that auxDetectInputState is
 			// positive logic 
-			debounceInputs(&auxDetectInputState, ((~PINA) & 0x01));
+			debounceInputs(&auxDetectInputState, ((~PING) & (_BV(PG3) | _BV(PG4)))>>3);
 
+			if (detectorStatus & 0x01)
+			{
+				setOccupancyALED(ON);
+				setOccupancyAOn();
+			}
+			else if (auxDetectInputState & 0x01)
+			{
+				setOccupancyALED(BLINK);
+				setOccupancyAOn();
+			}
+			else
+			{
+				setOccupancyALED(OFF);
+				setOccupancyAOff();
+			}
+
+			if (detectorStatus & 0x02)
+			{
+				setOccupancyBLED(ON);
+				setOccupancyBOn();
+			}
+			else if (auxDetectInputState & 0x02)
+			{
+				setOccupancyBLED(BLINK);
+				setOccupancyBOn();
+			}
+			else
+			{
+				setOccupancyBLED(OFF);
+				setOccupancyBOff();
+			}
+
+
+/*
 			if (detectorStatus || auxDetectInputState)
 				setOccupancyOn();
 			else
 				setOccupancyOff();
-
+*/
 
 			// Clear the flag and start the next chain of conversions
 			eventFlags &= ~(EVENT_DO_BD_READ);
@@ -400,35 +451,6 @@ int main(void)
 			// If the ISR tells us it's time to run the ADC again and we've handled the last read, 
 			// start the ADC again
 			ADCSRA |= _BV(ADSC);
-		}
-
-*/
-		// This should provide roughly a 1Hz blink rate, based on 10 conversions per second out of the ADC
-		// code.  It provides a nice proof of life that the ADC is actually doing its thing and is alive.
-		if(conversionCounter >= 10)
-			conversionCounter = 0;
-
-		if (conversionCounter < 5)
-		{
-//			setAuxLEDOff();
-/*
-			if (detectorStatus)
-				setOccupancyLEDOn();
-			else if (auxDetectInputState)
-				setOccupancyLEDOff();				
-			else
-				setOccupancyLEDOff();*/
-		}
-		else
-		{
-			setAuxLEDOn();
-/*
-			if (detectorStatus)
-				setOccupancyLEDOn();
-			else if (auxDetectInputState)
-				setOccupancyLEDOn();
-			else
-				setOccupancyLEDOff();*/
 		}
 	}
 }

@@ -1,0 +1,141 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/eeprom.h>
+#include "mss-cascade.h"
+
+volatile uint16_t adcValue[6];
+uint8_t detectorOnDelayCount[2] = {0, 0};
+uint8_t detectorOffDelayCount[2] = {0, 0};
+uint8_t detectorOnDelay[2] = {4, 4};
+uint8_t detectorOffDelay[2] = {25, 25};
+uint8_t detectorStatus = 0;
+
+void processDetectors(void)
+{	
+	for(uint8_t channel = 0; channel < 2; channel++)
+	{
+		uint16_t threshold = adcValue[ADC_CHANNEL_SETPOINT_0 + channel];
+		uint8_t channelMask = (1<<channel);
+
+		// Introduce a bit of hysteresis. 
+		// If the channel is currently "on", lower the threshold by 5 counts
+		// If the channel is currently "off", raise the threshold by 5
+		if ((detectorStatus & channelMask) && (threshold >= 5))
+		{
+			threshold -= 5;
+		} 
+		else if ( (0 == (detectorStatus & channelMask)) && (threshold <= (1023-5)) )
+		{
+			threshold += 5;
+		}
+	
+		if (adcValue[channel] > threshold)
+		{
+			// Current for the channel has exceeded threshold
+			
+			if (0 == (detectorStatus & channelMask))
+			{
+				// Channel is currently in a non-detecting state
+				// Wait for the turnon delay before actually indicating on
+				if (detectorOnDelayCount[channel] < detectorOnDelay[channel])
+					detectorOnDelayCount[channel]++;
+				else
+				{
+					detectorStatus |= channelMask;
+					detectorOffDelayCount[channel] = 0;
+				}
+			} else {
+				// Channel is currently in a detecting state
+				detectorOffDelayCount[channel] = 0;
+			}
+		} else {
+			// Current for the channel is under the threshold value
+			if (detectorStatus & channelMask)
+			{
+				// Channel is currently in a non-detecting state
+				if (detectorOffDelayCount[channel] < detectorOffDelay[channel])
+					detectorOffDelayCount[channel]++;
+				else
+				{
+					detectorStatus &= ~(channelMask);
+					detectorOnDelayCount[channel] = 0;
+				}
+			} else {
+				// Channel is currently in a detecting state
+				detectorOnDelayCount[channel] = 0;
+			}
+		}
+	}
+}
+
+void initializeADC()
+{
+	for(uint8_t i=0; i<sizeof(adcValue)/sizeof(adcValue[0]); i++)
+		adcValue[i] = 0;
+
+	// Setup ADC for bus voltage monitoring
+	ADMUX  = 0x40;  // AVCC reference, ADC0 starting channel
+	ADCSRA = _BV(ADIF) | _BV(ADPS2) | _BV(ADPS1); // 64 prescaler, ~8.3kconv / s
+	ADCSRB = 0x00; // Free running mode
+	DIDR0  = 0x3F;  // Turn ADC pins 0-5 into analog inputs
+	ADCSRA |= _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
+}
+
+
+void initializeDetectors()
+{
+	uint8_t channel = 0;
+	for (channel = 0; channel < 2 ; channel++)
+	{
+		detectorOnDelay[channel] = eeprom_read_byte((uint8_t*)(CHANNEL0_ON_DELAY + channel));
+		if (0xFF == detectorOnDelay[channel] || 0x00 == detectorOnDelay[channel])
+		{
+			eeprom_write_byte((uint8_t*)(CHANNEL0_ON_DELAY + channel), 4);
+			detectorOnDelay[channel] = eeprom_read_byte((uint8_t*)(CHANNEL0_ON_DELAY + channel));
+		}	
+
+
+		detectorOffDelay[channel] = eeprom_read_byte((uint8_t*)(CHANNEL0_OFF_DELAY + channel));
+		if (0xFF == detectorOffDelay[channel] || 0x00 == detectorOffDelay[channel])
+		{
+			eeprom_write_byte((uint8_t*)(CHANNEL0_OFF_DELAY + channel), 25);
+			detectorOffDelay[channel] = eeprom_read_byte((uint8_t*)(CHANNEL0_OFF_DELAY + channel));
+		}	
+	}
+	
+	initializeADC();
+	
+}
+
+ISR(ADC_vect)
+{
+	static uint8_t workingChannel = 0;
+	static uint16_t accumulator = 0;
+	static uint8_t count = 0;
+	
+	accumulator += ADC;
+	if (++count >= 64)
+	{
+		adcValue[workingChannel] = accumulator / 64;
+		accumulator = 0;
+		count = 0;
+		workingChannel++;
+
+		if (6 == workingChannel)
+		{
+			workingChannel = 0;
+			eventFlags |= EVENT_DO_BD_READ;
+		}
+
+		ADMUX = (ADMUX & 0xF0) | (workingChannel & 0x07);
+
+	}
+
+	if (0 == (eventFlags & EVENT_DO_BD_READ))
+	{
+		// Trigger the next conversion.  Not using auto-trigger so that we can safely change channels
+		ADCSRA |= _BV(ADSC);
+	}
+}
+
+
