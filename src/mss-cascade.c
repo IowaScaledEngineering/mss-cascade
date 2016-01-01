@@ -76,8 +76,8 @@ SignalAspect signalAspectB2 = ASPECT_OFF;
 	//  PE5 - SDA (in)
 	//  PE6 - B Yellow 1 (out)
 	//  PE7 - B Green 2  (out)
-	DDRE  = 0b11001111;
-	PORTE = 0b00000000;
+	DDRE  = 0b11011111;
+	PORTE = 0b00110000;
 	
 	// Pin Assignments for PORTE/DDRE
 	//  PF0 - Analog 0 - Setpoint 1
@@ -254,7 +254,6 @@ Basic algorithm:
 int main(void)
 {
 	uint8_t auxDetectInputState = 0;
-	uint8_t conversionCounter = 0;
 
 	// Deal with watchdog first thing
 	MCUSR = 0;					// Clear reset status
@@ -317,11 +316,11 @@ int main(void)
 	//  PE1 - TX (N/C)
 	//  PE2 - N/C
 	//  PE3 - B Green 1  (out)
-	//  PE4 - SCL (in)
+	//  PE4 - SCL (out)
 	//  PE5 - SDA (in)
 	//  PE6 - B Yellow 1 (out)
 	//  PE7 - B Green 2  (out)
-	DDRE  = 0b11001111;
+	DDRE  = 0b11011111;
 	PORTE = 0b00000000;
 	
 	// Pin Assignments for PORTE/DDRE
@@ -401,49 +400,40 @@ int main(void)
 			// positive logic 
 			debounceInputs(&auxDetectInputState, ((~PING) & (_BV(PG3) | _BV(PG4)))>>3);
 
-			if (detectorStatus & 0x01)
-			{
+			if (detectorStatus & _BV(DETECT_DCC_A))
 				setOccupancyALED(ON);
-				setOccupancyAOn();
-			}
-			else if (auxDetectInputState & 0x01)
-			{
+			else if (auxDetectInputState & _BV(DETECT_DCC_A))
 				setOccupancyALED(BLINK);
-				setOccupancyAOn();
-			}
 			else
-			{
 				setOccupancyALED(OFF);
-				setOccupancyAOff();
-			}
 
-			if (detectorStatus & 0x02)
-			{
+			if (detectorStatus & _BV(DETECT_DCC_B))
 				setOccupancyBLED(ON);
-				setOccupancyBOn();
-			}
-			else if (auxDetectInputState & 0x02)
-			{
+			else if (auxDetectInputState & _BV(DETECT_DCC_B))
 				setOccupancyBLED(BLINK);
-				setOccupancyBOn();
-			}
 			else
-			{
 				setOccupancyBLED(OFF);
-				setOccupancyBOff();
-			}
 
-
-/*
-			if (detectorStatus || auxDetectInputState)
-				setOccupancyOn();
+			if (detectorStatus & _BV(DETECT_IR))
+				setOccupancyIRLED(ON);
+			else if (detectorStatus & _BV(ERROR_IR))
+				setOccupancyIRLED(BLINK);
 			else
-				setOccupancyOff();
-*/
+				setOccupancyIRLED(OFF);
+
+
+			if ((detectorStatus & (_BV(DETECT_DCC_A) | _BV(DETECT_IR))) || (auxDetectInputState & _BV(DETECT_DCC_A)))
+				setOccupancyAOn();
+			else
+				setOccupancyAOff();
+
+			if ((detectorStatus & (_BV(DETECT_DCC_B) | _BV(DETECT_IR))) || (auxDetectInputState & _BV(DETECT_DCC_B)))
+				setOccupancyBOn();
+			else
+				setOccupancyBOff();
 
 			// Clear the flag and start the next chain of conversions
 			eventFlags &= ~(EVENT_DO_BD_READ);
-			conversionCounter++;
 		}
 
 		if (EVENT_DO_ADC_RUN == (eventFlags & (EVENT_DO_ADC_RUN | EVENT_DO_BD_READ)))
@@ -451,6 +441,7 @@ int main(void)
 			// If the ISR tells us it's time to run the ADC again and we've handled the last read, 
 			// start the ADC again
 			ADCSRA |= _BV(ADSC);
+			triggerIRDetector();
 		}
 	}
 }

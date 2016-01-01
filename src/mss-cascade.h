@@ -63,13 +63,27 @@ void processMSSCodeline();
 // *******************************************
 // From detectors.c
 
+#define DETECT_DCC_A  0
+#define DETECT_DCC_B  1
+#define DETECT_IR     2
+#define ERROR_IR      3
+
+#define   TMD26711_ADDR   0x39
+#define   INFO_ADDR       0x20
+#define   PROXIMITY_THRESHOLD   0x300
+#define   PPULSE_DEFAULT        8
+#define   ON_DEBOUNCE_DEFAULT   1
+#define   OFF_DEBOUNCE_DEFAULT  10
+
 // Externed variables
 extern uint8_t detectorStatus;
 
 // Functions
 void initializeADC();
 void initializeDetectors();
+void triggerIRDetector();
 void processDetectors(void);
+
 
 // *******************************************
 // From indicators.c
@@ -94,6 +108,24 @@ void setAuxLED(uint8_t state);
 void setOccupancyIRLEDOn();
 void setOccupancyIRLEDOff();
 void setOccupancyIRLED(uint8_t state);
+
+// *******************************************
+// From i2c.c
+
+#define   I2C_SDA   PE5
+#define   I2C_SCL   PE4
+#define   I2C_SDA_DDR   DDRE
+#define   I2C_SDA_PORT  PORTE 
+#define   I2C_SDA_PIN   PINE
+#define   I2C_SCL_DDR   DDRE
+#define   I2C_SCL_PORT  PORTE
+
+uint8_t i2cWriteByte(uint8_t byte);
+uint8_t i2cReadByte(uint8_t ack);
+uint8_t writeByte(uint8_t addr, uint8_t cmd, uint16_t writeVal);
+uint8_t readWord(uint8_t addr, uint8_t cmd, uint16_t* data);
+
+
 
 #endif
 

@@ -27,7 +27,7 @@
 
 BASE_NAME = mss-cascade
 
-# ATmega328P 20MHz @ 5.0V
+# ATmega165A 8MHz @ 5.0V (internal oscillator)
 DEVICE  = atmega165a
 F_CPU   = 8000000UL  # Hz
 FUSE_L  = 0xE2
@@ -38,8 +38,8 @@ FUSE_E  = 0xFB
 PROGRAMMER_TYPE=usbtiny
 PROGRAMMER_PORT=usb
 
-DEFINES = 
-SRCS = $(BASE_NAME).c detectors.c mss-codeline.c indicators.c
+DEFINES = -DENABLE_WATCHDOG -DI2C_FREQ=100000
+SRCS = $(BASE_NAME).c detectors.c mss-codeline.c indicators.c i2c.c
 INCS = mss-cascade.h
 
 AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B2
@@ -48,8 +48,8 @@ AVRDUDE_SLOW = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) 
 OBJS = ${SRCS:.c=.o}
 INCLUDES = -I. 
 CFLAGS  = $(INCLUDES) -Wall -O2 -std=gnu99 -fshort-enums
-#ASFLAGS = -ffunction-sections -fdata-sections
-#LDFLAGS = -Wl,-gc-sections
+ASFLAGS = -ffunction-sections -fdata-sections
+LDFLAGS = -Wl,-gc-sections
 
 COMPILE = avr-gcc $(DEFINES) -DF_CPU=$(F_CPU) $(CFLAGS) $(LDFLAGS) -mmcu=$(DEVICE)
 
@@ -63,6 +63,11 @@ help:
 	@echo "make clean ..... delete objects and hex file"
 	@echo "make release.... produce release tarball"
 	@echo "make terminal... open up avrdude terminal"
+
+setup:
+	git submodule init
+	git submodule update
+
 
 hex: $(BASE_NAME).hex
 
