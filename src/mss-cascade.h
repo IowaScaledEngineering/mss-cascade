@@ -13,6 +13,20 @@
 #define ADC_CHANNEL_REDGRN_A    4
 #define ADC_CHANNEL_REDGRN_B    5
 
+
+#define CONFIG_SIGNAL_TYPE_0    0
+#define CONFIG_SIGNAL_TYPE_1    1
+#define CONFIG_SIGNAL_TYPE_2    2
+#define CONFIG_SIGNAL_A_DUAL    3
+#define CONFIG_SIGNAL_B_DUAL    4
+#define CONFIG_SWITCH_6         5
+#define CONFIG_SWITCH_7         6
+#define CONFIG_SWITCH_8         7
+#define CONFIG_SWITCH_9         8
+#define CONFIG_APPROACH_LIT     9
+
+
+
 // *******************************************
 // From mss-cascade.c
 
@@ -26,6 +40,10 @@ typedef enum
 {
 	SIGNAL_3LIGHT_CA = 0,
 	SIGNAL_3LIGHT_CC = 1,
+	SIGNAL_3WIRE_RG_CA = 2,
+	SIGNAL_3WIRE_RG_CC = 3,
+	SIGNAL_2WIRE_RG    = 4,
+	SIGNAL_UNKNOWN     = 32
 } SignalHeadType;
 
 typedef enum
@@ -40,7 +58,7 @@ typedef enum
 	ASPECT_LUNAR        = 7
 } SignalAspect;
 
-
+void translateCodelineToIndications();
 
 
 // *******************************************
