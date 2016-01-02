@@ -22,7 +22,7 @@
 #define CONFIG_SWITCH_6         5
 #define CONFIG_SWITCH_7         6
 #define CONFIG_SWITCH_8         7
-#define CONFIG_SWITCH_9         8
+#define CONFIG_SUPPRESS_BLINKY  8
 #define CONFIG_APPROACH_LIT     9
 
 
@@ -95,7 +95,7 @@ void processMSSCodeline();
 
 // Externed variables
 extern uint8_t detectorStatus;
-
+extern volatile uint16_t adcValue[6];
 // Functions
 void initializeADC();
 void initializeDetectors();

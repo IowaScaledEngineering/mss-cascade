@@ -164,21 +164,38 @@ void setSignalB2(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca)
 	}
 }
 
+uint8_t a_trim = 7;
+uint8_t b_trim = 7;
 
 ISR(TIMER2_COMP_vect)
 {
 	uint8_t commonAnode = 0;
-	uint8_t redStop = 32;
-	uint8_t greenStop = 32;
-	
+	uint8_t a_redStop = 32;
+	uint8_t a_greenStop = 32;
+	uint8_t b_redStop = 32;
+	uint8_t b_greenStop = 32;
+		
 	// This is where signal output generation is handled.  
 
-	static uint8_t trim = 0;
+	static uint8_t slice = 0;
 
-	if (++trim >= 32)
-		trim = 0;
-		
-	if (trim
+	if (++slice >= 32)
+		slice = 0;
+
+	if (a_trim <= 15)
+	{
+		a_redStop -= (15-a_trim);
+	} else {
+		a_greenStop -= (a_trim - 15);
+	}
+	
+	if (b_trim <= 15)
+	{
+		b_redStop -= (15-b_trim);
+	} else {
+		b_greenStop -= (b_trim - 15);
+	}
+
 
 	switch(signalHeadTypeA1)
 	{
@@ -221,7 +238,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalA1(1,0,0, commonAnode);
 					break;
 				case ASPECT_YELLOW:
-					setSignalA1(1,0,1, commonAnode);
+					setSignalA1((slice >= a_redStop)?0:1, 0, (slice >= a_greenStop)?0:1, commonAnode);
 					break;
 				case ASPECT_GREEN:
 					setSignalA1(0,0,1, commonAnode);				
@@ -230,7 +247,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalA1((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
 					break;
 				case ASPECT_FL_YELLOW:
-					setSignalA1((eventFlags & EVENT_1HZ_BLINK),0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
+					setSignalA1((slice >= a_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= a_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
 					setSignalA1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
@@ -284,6 +301,36 @@ ISR(TIMER2_COMP_vect)
 			}		
 			break;
 
+		case SIGNAL_3WIRE_RG_CA:
+			commonAnode = 1;
+		case SIGNAL_3WIRE_RG_CC:
+			switch(signalAspectA2)
+			{
+				case ASPECT_RED:
+					setSignalA2(1,0,0, commonAnode);
+					break;
+				case ASPECT_YELLOW:
+					setSignalA2((slice >= a_redStop)?0:1, 0, (slice >= a_greenStop)?0:1, commonAnode);
+					break;
+				case ASPECT_GREEN:
+					setSignalA2(0,0,1, commonAnode);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalA2((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalA2((slice >= a_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= a_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalA2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalA2(0,0,0, commonAnode);
+					break;
+			}
+			break;
+
 		default:
 			setSignalA2(0,0,0, commonAnode);
 			break;			
@@ -334,7 +381,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalB1(1,0,0, commonAnode);
 					break;
 				case ASPECT_YELLOW:
-					setSignalB1(1,0,1, commonAnode);
+					setSignalB1((slice >= b_redStop)?0:1, 0, (slice >= b_greenStop)?0:1, commonAnode);
 					break;
 				case ASPECT_GREEN:
 					setSignalB1(0,0,1, commonAnode);				
@@ -343,18 +390,45 @@ ISR(TIMER2_COMP_vect)
 					setSignalB1((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
 					break;
 				case ASPECT_FL_YELLOW:
-					setSignalB1((eventFlags & EVENT_1HZ_BLINK),0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
+					setSignalB1((slice >= b_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= b_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
 					setSignalB1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
 					break;
 				case ASPECT_OFF:
 				default:
-					setSignalA1(0,0,0, commonAnode);
+					setSignalB1(0,0,0, commonAnode);
 					break;
 			}
 			break;
 
+		case SIGNAL_2WIRE_RG:
+			switch(signalAspectB1)
+			{
+				case ASPECT_RED:
+					setSignalB1(1,0,0, commonAnode);
+					break;
+				case ASPECT_YELLOW:
+					setSignalB1((slice < b_redStop && 0 == (slice % 2))?1:0, 0, (slice < b_greenStop && (slice % 2))?1:0, commonAnode);
+					break;
+				case ASPECT_GREEN:
+					setSignalB1(0,0,1, commonAnode);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalB1((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalB1((slice < b_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < b_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, commonAnode);
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalB1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalB1(0,0,0, commonAnode);
+					break;
+			}
+			break;
 
 		default:
 			setSignalB1(0,0,0, commonAnode);
@@ -396,6 +470,37 @@ ISR(TIMER2_COMP_vect)
 			}
 			break;
 
+		case SIGNAL_3WIRE_RG_CA:
+			commonAnode = 1;
+		case SIGNAL_3WIRE_RG_CC:
+			switch(signalAspectB2)
+			{
+				case ASPECT_RED:
+					setSignalB2(1,0,0, commonAnode);
+					break;
+				case ASPECT_YELLOW:
+					setSignalB2((slice >= b_redStop)?0:1, 0, (slice >= b_greenStop)?0:1, commonAnode);
+					break;
+				case ASPECT_GREEN:
+					setSignalB2(0,0,1, commonAnode);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalB2((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalB2((slice >= b_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= b_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalB2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalB2(0,0,0, commonAnode);
+					break;
+			}
+			break;
+
+
 		default:
 			setSignalB2(0,0,0, commonAnode);
 			break;		
@@ -408,6 +513,11 @@ uint16_t configSwitches = 0;
 inline uint8_t signalsApproachLit()
 {
 	return (configSwitches & _BV(CONFIG_APPROACH_LIT))?1:0;
+}
+
+inline uint8_t signalsSuppressBlinkingAspects()
+{
+	return (configSwitches & _BV(CONFIG_SUPPRESS_BLINKY))?1:0;
 }
 
 /*
@@ -725,7 +835,7 @@ void translateCodelineToIndications()
 		{
 			case INDICATION_APPROACH_DIVERGING:
 			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectA1 = newSignalAspectA2 = ASPECT_FL_YELLOW;
+				newSignalAspectA1 = newSignalAspectA2 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
 				break;
 			case INDICATION_APPROACH:
 				newSignalAspectA1 = newSignalAspectA2 = ASPECT_YELLOW;
@@ -736,6 +846,7 @@ void translateCodelineToIndications()
 			case INDICATION_STOP:
 			default:
 				newSignalAspectA1 = newSignalAspectA2 = ASPECT_RED;
+				break;
 		}		
 	}
 	else
@@ -749,7 +860,7 @@ void translateCodelineToIndications()
 				break;
 				
 			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectA1 = ASPECT_FL_YELLOW;
+				newSignalAspectA1 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
 				newSignalAspectA2 = ASPECT_RED;
 				break;
 				
@@ -766,6 +877,7 @@ void translateCodelineToIndications()
 			case INDICATION_STOP:
 			default:
 				newSignalAspectA1 = newSignalAspectA2 = ASPECT_RED;
+				break;
 		}			
 	}
 
@@ -775,7 +887,7 @@ void translateCodelineToIndications()
 		{
 			case INDICATION_APPROACH_DIVERGING:
 			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectB1 = newSignalAspectB2 = ASPECT_FL_YELLOW;
+				newSignalAspectB1 = newSignalAspectB2 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
 				break;
 			case INDICATION_APPROACH:
 				newSignalAspectB1 = newSignalAspectB2 = ASPECT_YELLOW;
@@ -786,6 +898,7 @@ void translateCodelineToIndications()
 			case INDICATION_STOP:
 			default:
 				newSignalAspectB1 = newSignalAspectB2 = ASPECT_RED;
+				break;
 		}		
 	}
 	else
@@ -799,7 +912,7 @@ void translateCodelineToIndications()
 				break;
 				
 			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectB1 = ASPECT_FL_YELLOW;
+				newSignalAspectB1 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
 				newSignalAspectB2 = ASPECT_RED;
 				break;
 				
@@ -816,6 +929,7 @@ void translateCodelineToIndications()
 			case INDICATION_STOP:
 			default:
 				newSignalAspectB1 = newSignalAspectB2 = ASPECT_RED;
+				break;
 		}			
 	}
 
@@ -839,6 +953,9 @@ void translateCodelineToIndications()
 	// Reload the signal type configuration
 	signalConfigToSignalType();
 	
+	a_trim = adcValue[5] / 32;
+	b_trim = adcValue[4] / 32;
+		
 	signalAspectA1 = newSignalAspectA1;
 	signalAspectA2 = newSignalAspectA2;
 	signalAspectB1 = newSignalAspectB1;
