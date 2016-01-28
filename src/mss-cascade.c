@@ -514,19 +514,38 @@ inline uint8_t signalsApproachLit()
 {
 	return (configSwitches & _BV(CONFIG_APPROACH_LIT))?1:0;
 }
-
+/*
 inline uint8_t signalsSuppressBlinkingAspects()
 {
 	return (configSwitches & _BV(CONFIG_SUPPRESS_BLINKY))?1:0;
-}
+}*/
 
 /*
 Bits:
  0/1/2 - Signal Type
  3 - A dual head
  4 - B dual head
- 8 - 
+ 5 - A configuration 
+ 6 - A configuration
+ 7 - B configuration
+ 8 - B configuration
  9 - Approach lit
+
+Signal Configurations - Single Head
+
+Single Head
+Bits  ST  AA  DA  AP  CL
+  00   R  BY   Y   Y   G
+  01   R  BY   G   Y   G
+  10   R   G   Y   Y   G
+  11   R   G   G   Y   G
+
+Dual Head
+Bits   ST   AA    DA    AP   CL
+  00   R/R  BY/R  Y/Y   Y/R  G/R
+  01   R/R  BY/R  Y/G   Y/R  G/R
+  10   R/R  BY/R  Y/BG  Y/R  G/R
+  11   R/R  G/R   Y/Y   Y/R  G/R
 
 
 210 - Signal type
@@ -537,7 +556,6 @@ Bits:
 100 - 2 wire R/G
 
 */
-
 
 uint8_t signalAIsSingleHead()
 {
@@ -559,6 +577,15 @@ uint8_t signalBIsDualHead()
 	return (configSwitches & _BV(CONFIG_SIGNAL_B_DUAL))?0:1;
 }
 
+uint8_t signalAAspectConfiguration()
+{
+	return (signalAIsSingleHead()?4:0) + ((configSwitches & (_BV(CONFIG_SIGNAL_A_ASPECTS0) | _BV(CONFIG_SIGNAL_A_ASPECTS1)))>>CONFIG_SIGNAL_A_ASPECTS0);
+}
+
+uint8_t signalBAspectConfiguration()
+{
+	return (signalBIsSingleHead()?4:0) + ((configSwitches & (_BV(CONFIG_SIGNAL_B_ASPECTS0) | _BV(CONFIG_SIGNAL_B_ASPECTS1)))>>CONFIG_SIGNAL_B_ASPECTS0);
+}
 
 void signalConfigToSignalType()
 {
@@ -821,6 +848,84 @@ int main(void)
 		translateCodelineToIndications();
 	}
 }
+/*
+	INDICATION_STOP               = 0,
+	INDICATION_APPROACH           = 1,
+	INDICATION_APPROACH_DIVERGING = 2,
+	INDICATION_ADVANCE_APPROACH   = 3,
+	INDICATION_CLEAR              = 4
+
+Single Head
+Bits  ST  AA  DA  AP  CL
+  00   R  BY   Y   Y   G
+  01   R  BY   G   Y   G
+  10   R   G   Y   Y   G
+  11   R   G   G   Y   G
+
+Dual Head
+Bits   ST   AA    DA    AP   CL
+  00   R/R  BY/R  Y/Y   Y/R  G/R
+  01   R/R  BY/R  Y/G   Y/R  G/R
+  10   R/R  BY/R  Y/BG  Y/R  G/R
+  11   R/R  G/R   Y/Y   Y/R  G/R
+*/
+
+typedef struct 
+{
+	uint8_t upperHead[5];
+	uint8_t lowerHead[5];
+} CodelineToIndicationTranslate;
+
+CodelineToIndicationTranslate clXlate[] = 
+{
+	{ // Single head, bits 00
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN}
+	},
+
+	{ // Single head, bits 01
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_FL_YELLOW, ASPECT_GREEN}
+	},
+
+	{ // Single head, bits 10
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN}
+	},
+
+	{ // Single head, bits 11
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN, ASPECT_GREEN}
+	},
+
+/*
+Dual Head
+Bits   ST   AA    DA    AP   CL
+  00   R/R  BY/R  Y/Y   Y/R  G/R
+  01   R/R  BY/R  Y/G   Y/R  G/R
+  10   R/R  BY/R  Y/BG  Y/R  G/R
+  11   R/R  G/R   Y/Y   Y/R  G/R */
+
+	{ // Dual head, bits 00
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED, ASPECT_YELLOW,       ASPECT_RED,   ASPECT_RED}
+	},
+
+	{ // Dual head, bits 01
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED,  ASPECT_GREEN,       ASPECT_RED,   ASPECT_RED}
+	},
+
+	{ // Dual head, bits 10
+		{ASPECT_RED, ASPECT_YELLOW,   ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED, ASPECT_FL_GREEN,       ASPECT_RED,   ASPECT_RED}
+	},
+
+	{ // Dual head, bits 11
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED, ASPECT_YELLOW,   ASPECT_RED,   ASPECT_RED}
+	},
+};
 
 void translateCodelineToIndications()
 {
@@ -829,109 +934,19 @@ void translateCodelineToIndications()
 	uint8_t newSignalAspectB1 = ASPECT_OFF;
 	uint8_t newSignalAspectB2 = ASPECT_OFF;	
 
-	if (signalAIsSingleHead())
-	{
-		switch(codeLineB)
-		{
-			case INDICATION_APPROACH_DIVERGING:
-			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectA1 = newSignalAspectA2 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
-				break;
-			case INDICATION_APPROACH:
-				newSignalAspectA1 = newSignalAspectA2 = ASPECT_YELLOW;
-				break;
-			case INDICATION_CLEAR:
-				newSignalAspectA1 = newSignalAspectA2 = ASPECT_GREEN;
-				break;
-			case INDICATION_STOP:
-			default:
-				newSignalAspectA1 = newSignalAspectA2 = ASPECT_RED;
-				break;
-		}		
-	}
-	else
-	{
-		// Dual headed signals
-		switch(codeLineB)
-		{
-			case INDICATION_APPROACH_DIVERGING:
-				newSignalAspectA1 = ASPECT_YELLOW;
-				newSignalAspectA2 = ASPECT_YELLOW;
-				break;
-				
-			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectA1 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
-				newSignalAspectA2 = ASPECT_RED;
-				break;
-				
-			case INDICATION_APPROACH:
-				newSignalAspectA1 = ASPECT_YELLOW;
-				newSignalAspectA2 = ASPECT_RED;
-				break;
-				
-			case INDICATION_CLEAR:
-				newSignalAspectA1 = ASPECT_GREEN;
-				newSignalAspectA2 = ASPECT_RED;
-				break;
+	if (codeLineA > INDICATION_CLEAR)
+		codeLineA = INDICATION_STOP;
 
-			case INDICATION_STOP:
-			default:
-				newSignalAspectA1 = newSignalAspectA2 = ASPECT_RED;
-				break;
-		}			
-	}
+	if (codeLineB > INDICATION_CLEAR)
+		codeLineB = INDICATION_STOP;
+	
 
-	if (signalBIsSingleHead())
-	{
-		switch(codeLineA)
-		{
-			case INDICATION_APPROACH_DIVERGING:
-			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectB1 = newSignalAspectB2 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
-				break;
-			case INDICATION_APPROACH:
-				newSignalAspectB1 = newSignalAspectB2 = ASPECT_YELLOW;
-				break;
-			case INDICATION_CLEAR:
-				newSignalAspectB1 = newSignalAspectB2 = ASPECT_GREEN;
-				break;
-			case INDICATION_STOP:
-			default:
-				newSignalAspectB1 = newSignalAspectB2 = ASPECT_RED;
-				break;
-		}		
-	}
-	else
-	{
-		// Dual headed signals
-		switch(codeLineA)
-		{
-			case INDICATION_APPROACH_DIVERGING:
-				newSignalAspectB1 = ASPECT_YELLOW;
-				newSignalAspectB2 = ASPECT_YELLOW;
-				break;
-				
-			case INDICATION_ADVANCE_APPROACH:
-				newSignalAspectB1 = signalsSuppressBlinkingAspects()?ASPECT_GREEN:ASPECT_FL_YELLOW;
-				newSignalAspectB2 = ASPECT_RED;
-				break;
-				
-			case INDICATION_APPROACH:
-				newSignalAspectB1 = ASPECT_YELLOW;
-				newSignalAspectB2 = ASPECT_RED;
-				break;
-				
-			case INDICATION_CLEAR:
-				newSignalAspectB1 = ASPECT_GREEN;
-				newSignalAspectB2 = ASPECT_RED;
-				break;
+	newSignalAspectA1 = clXlate[signalAAspectConfiguration()].upperHead[codeLineB];
+	newSignalAspectA2 = clXlate[signalAAspectConfiguration()].lowerHead[codeLineB];
 
-			case INDICATION_STOP:
-			default:
-				newSignalAspectB1 = newSignalAspectB2 = ASPECT_RED;
-				break;
-		}			
-	}
+	newSignalAspectB1 = clXlate[signalAAspectConfiguration()].upperHead[codeLineA];
+	newSignalAspectB2 = clXlate[signalAAspectConfiguration()].lowerHead[codeLineA];
+
 
 	if (signalsApproachLit())
 	{
