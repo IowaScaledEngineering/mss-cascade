@@ -1,0 +1,65 @@
+// clXlate is an array of aspects to display on each head based on the codeline's current status
+// The fields across represent, in order:
+//  { INDICATION_STOP, INDICATION_APPROACH, INDICATION_APPROACH_DIVERGING, INDICATION_ADVANCE_APPROACH, INDICATION_CLEAR }
+// The array allows for 4 sets of aspects for single headed configurations, 4 sets for double
+
+CodelineToIndicationTranslate clXlate[] = 
+{
+/* 
+Single Head
+Bits  ST  AA  DA  AP  CL
+  00   R  BY   Y   Y   G
+  01   R  BY   G   Y   G
+  10   R   G   Y   Y   G
+  11   R   G   G   Y   G
+*/
+	{ // Single head, bits 00
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN}
+	},
+
+	{ // Single head, bits 01
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_FL_YELLOW, ASPECT_GREEN}
+	},
+
+	{ // Single head, bits 10
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN}
+	},
+
+	{ // Single head, bits 11
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN, ASPECT_GREEN},
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN, ASPECT_GREEN}
+	},
+
+/*
+Dual Head
+Bits   ST   AA    DA    AP   CL
+  00   R/R  BY/R  Y/Y   Y/R  G/R
+  01   R/R  BY/R  Y/G   Y/R  G/R
+  10   R/R  BY/R  Y/BG  Y/R  G/R
+  11   R/R  G/R   Y/Y   Y/R  G/R */
+
+	{ // Dual head, bits 00
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED, ASPECT_YELLOW,       ASPECT_RED,   ASPECT_RED}
+	},
+
+	{ // Dual head, bits 01
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED,  ASPECT_GREEN,       ASPECT_RED,   ASPECT_RED}
+	},
+
+	{ // Dual head, bits 10
+		{ASPECT_RED, ASPECT_YELLOW,   ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED, ASPECT_FL_GREEN,       ASPECT_RED,   ASPECT_RED}
+	},
+
+	{ // Dual head, bits 11
+		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN},
+		{ASPECT_RED,    ASPECT_RED, ASPECT_YELLOW,   ASPECT_RED,   ASPECT_RED}
+	},
+};
+
+

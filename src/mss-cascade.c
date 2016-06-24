@@ -4,6 +4,7 @@
 #include <util/delay.h>
 #include <avr/wdt.h>
 #include "mss-cascade.h"
+#include "signalConfiguration.h"
 
 // Global Variables
 SignalHeadType signalHeadTypeA1 = SIGNAL_3LIGHT_CA;
@@ -261,84 +262,7 @@ int main(void)
 		translateCodelineToIndications();
 	}
 }
-/*
-	INDICATION_STOP               = 0,
-	INDICATION_APPROACH           = 1,
-	INDICATION_APPROACH_DIVERGING = 2,
-	INDICATION_ADVANCE_APPROACH   = 3,
-	INDICATION_CLEAR              = 4
 
-Single Head
-Bits  ST  AA  DA  AP  CL
-  00   R  BY   Y   Y   G
-  01   R  BY   G   Y   G
-  10   R   G   Y   Y   G
-  11   R   G   G   Y   G
-
-Dual Head
-Bits   ST   AA    DA    AP   CL
-  00   R/R  BY/R  Y/Y   Y/R  G/R
-  01   R/R  BY/R  Y/G   Y/R  G/R
-  10   R/R  BY/R  Y/BG  Y/R  G/R
-  11   R/R  G/R   Y/Y   Y/R  G/R
-*/
-
-typedef struct 
-{
-	uint8_t upperHead[5];
-	uint8_t lowerHead[5];
-} CodelineToIndicationTranslate;
-
-CodelineToIndicationTranslate clXlate[] = 
-{
-	{ // Single head, bits 00
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN}
-	},
-
-	{ // Single head, bits 01
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_FL_YELLOW, ASPECT_GREEN},
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_FL_YELLOW, ASPECT_GREEN}
-	},
-
-	{ // Single head, bits 10
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN},
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN}
-	},
-
-	{ // Single head, bits 11
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN, ASPECT_GREEN},
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN, ASPECT_GREEN}
-	},
-
-/*
-Dual Head
-Bits   ST   AA    DA    AP   CL
-  00   R/R  BY/R  Y/Y   Y/R  G/R
-  01   R/R  BY/R  Y/G   Y/R  G/R
-  10   R/R  BY/R  Y/BG  Y/R  G/R
-  11   R/R  G/R   Y/Y   Y/R  G/R */
-
-	{ // Dual head, bits 00
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
-		{ASPECT_RED,    ASPECT_RED, ASPECT_YELLOW,       ASPECT_RED,   ASPECT_RED}
-	},
-
-	{ // Dual head, bits 01
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
-		{ASPECT_RED,    ASPECT_RED,  ASPECT_GREEN,       ASPECT_RED,   ASPECT_RED}
-	},
-
-	{ // Dual head, bits 10
-		{ASPECT_RED, ASPECT_YELLOW,   ASPECT_YELLOW, ASPECT_FL_YELLOW, ASPECT_GREEN},
-		{ASPECT_RED,    ASPECT_RED, ASPECT_FL_GREEN,       ASPECT_RED,   ASPECT_RED}
-	},
-
-	{ // Dual head, bits 11
-		{ASPECT_RED, ASPECT_YELLOW, ASPECT_YELLOW, ASPECT_GREEN, ASPECT_GREEN},
-		{ASPECT_RED,    ASPECT_RED, ASPECT_YELLOW,   ASPECT_RED,   ASPECT_RED}
-	},
-};
 
 void translateCodelineToIndications()
 {

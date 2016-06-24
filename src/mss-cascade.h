@@ -62,6 +62,12 @@ typedef enum
 	ASPECT_LUNAR        = 7
 } SignalAspect;
 
+typedef struct 
+{
+	uint8_t upperHead[5];
+	uint8_t lowerHead[5];
+} CodelineToIndicationTranslate;
+
 void translateCodelineToIndications();
 
 
