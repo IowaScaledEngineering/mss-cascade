@@ -196,7 +196,6 @@ ISR(TIMER2_COMP_vect)
 		b_greenStop -= (b_trim - 15);
 	}
 
-
 	switch(signalHeadTypeA1)
 	{
 		case SIGNAL_3LIGHT_CA:
@@ -259,7 +258,33 @@ ISR(TIMER2_COMP_vect)
 			}
 			break;
 		
-
+		case SIGNAL_2WIRE_RG:
+			switch(signalAspectA1)
+			{
+				case ASPECT_RED:
+					setSignalA1(1,0,0, 0);
+					break;
+				case ASPECT_YELLOW:
+					setSignalA1((slice < a_redStop && 0 == (slice % 2))?1:0, 0, (slice < a_greenStop && (slice % 2))?1:0, 0);
+					break;
+				case ASPECT_GREEN:
+					setSignalA1(0,0,1, 0);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalA1((eventFlags & EVENT_1HZ_BLINK),0,0, 0);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalA1((slice < a_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < a_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0);
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalA1(0,0,(eventFlags & EVENT_1HZ_BLINK), 0);
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalA1(0,0,0, 0);
+					break;
+			}
+			break;
 
 		default:
 			setSignalA1(0,0,0, commonAnode);
@@ -330,6 +355,35 @@ ISR(TIMER2_COMP_vect)
 					break;
 			}
 			break;
+
+		case SIGNAL_2WIRE_RG:
+			switch(signalAspectA2)
+			{
+				case ASPECT_RED:
+					setSignalA2(1,0,0, 0);
+					break;
+				case ASPECT_YELLOW:
+					setSignalA2((slice < a_redStop && 0 == (slice % 2))?1:0, 0, (slice < a_greenStop && (slice % 2))?1:0, 0);
+					break;
+				case ASPECT_GREEN:
+					setSignalA2(0,0,1, 0);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalA2((eventFlags & EVENT_1HZ_BLINK),0,0, 0);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalA2((slice < a_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < a_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0);
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalA2(0,0,(eventFlags & EVENT_1HZ_BLINK), 0);
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalA2(0,0,0, commonAnode);
+					break;
+			}
+			break;
+
 
 		default:
 			setSignalA2(0,0,0, commonAnode);
@@ -406,22 +460,22 @@ ISR(TIMER2_COMP_vect)
 			switch(signalAspectB1)
 			{
 				case ASPECT_RED:
-					setSignalB1(1,0,0, commonAnode);
+					setSignalB1(1,0,0, 0);
 					break;
 				case ASPECT_YELLOW:
-					setSignalB1((slice < b_redStop && 0 == (slice % 2))?1:0, 0, (slice < b_greenStop && (slice % 2))?1:0, commonAnode);
+					setSignalB1((slice < b_redStop && 0 == (slice % 2))?1:0, 0, (slice < b_greenStop && (slice % 2))?1:0, 0);
 					break;
 				case ASPECT_GREEN:
-					setSignalB1(0,0,1, commonAnode);				
+					setSignalB1(0,0,1, 0);				
 					break;
 				case ASPECT_FL_RED:
-					setSignalB1((eventFlags & EVENT_1HZ_BLINK),0,0, commonAnode);
+					setSignalB1((eventFlags & EVENT_1HZ_BLINK),0,0, 0);
 					break;
 				case ASPECT_FL_YELLOW:
-					setSignalB1((slice < b_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < b_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, commonAnode);
+					setSignalB1((slice < b_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < b_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0);
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalB1(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
+					setSignalB1(0,0,(eventFlags & EVENT_1HZ_BLINK), 0);
 					break;
 				case ASPECT_OFF:
 				default:
@@ -492,6 +546,34 @@ ISR(TIMER2_COMP_vect)
 					break;
 				case ASPECT_FL_GREEN:
 					setSignalB2(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
+					break;
+				case ASPECT_OFF:
+				default:
+					setSignalB2(0,0,0, commonAnode);
+					break;
+			}
+			break;
+
+		case SIGNAL_2WIRE_RG:
+			switch(signalAspectB2)
+			{
+				case ASPECT_RED:
+					setSignalB2(1,0,0, 0);
+					break;
+				case ASPECT_YELLOW:
+					setSignalB2((slice < b_redStop && 0 == (slice % 2))?1:0, 0, (slice < b_greenStop && (slice % 2))?1:0, 0);
+					break;
+				case ASPECT_GREEN:
+					setSignalB2(0,0,1, 0);				
+					break;
+				case ASPECT_FL_RED:
+					setSignalB2((eventFlags & EVENT_1HZ_BLINK),0,0, 0);
+					break;
+				case ASPECT_FL_YELLOW:
+					setSignalB2((slice < b_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < b_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0);
+					break;
+				case ASPECT_FL_GREEN:
+					setSignalB2(0,0,(eventFlags & EVENT_1HZ_BLINK), 0);
 					break;
 				case ASPECT_OFF:
 				default:
