@@ -31,7 +31,6 @@
 // From mss-cascade.c
 
 extern volatile uint8_t eventFlags;
-
 #define EVENT_DO_BD_READ 0x01
 #define EVENT_DO_ADC_RUN 0x02
 #define EVENT_1HZ_BLINK  0x04
@@ -45,6 +44,11 @@ typedef enum
 	SIGNAL_2WIRE_RG    = 4,
 	SIGNAL_UNKNOWN     = 32
 } SignalHeadType;
+
+extern SignalHeadType signalHeadTypeA1;
+extern SignalHeadType signalHeadTypeA2;
+extern SignalHeadType signalHeadTypeB1;
+extern SignalHeadType signalHeadTypeB2;
 
 typedef enum
 {
@@ -96,12 +100,14 @@ void processMSSCodeline();
 // Externed variables
 extern uint8_t detectorStatus;
 extern volatile uint16_t adcValue[6];
+extern uint8_t auxDetectInputState;
+
 // Functions
 void initializeADC();
 void initializeDetectors();
 void triggerIRDetector();
 void processDetectors(void);
-
+void debounceAuxDetectInputs();
 
 // *******************************************
 // From indicators.c
@@ -143,7 +149,27 @@ uint8_t i2cReadByte(uint8_t ack);
 uint8_t writeByte(uint8_t addr, uint8_t cmd, uint16_t writeVal);
 uint8_t readWord(uint8_t addr, uint8_t cmd, uint16_t* data);
 
+// *******************************************
+// From signalOutput.c
+typedef void (*SetSignal)(uint8_t red, uint8_t yellow, uint8_t green, uint8_t invert);
 
+void IndicationToOutputs(SetSignal setSignal, SignalHeadType signalHeadType, SignalAspect signalAspect, uint8_t blinkOn, uint8_t slice, uint8_t trim);
+void setSignalA1(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca);
+void setSignalA2(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca);
+void setSignalB1(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca);
+void setSignalB2(uint8_t red, uint8_t yellow, uint8_t green, uint8_t ca);
+
+//
+// From configuration.c
+uint8_t signalsApproachLit();
+uint8_t signalAIsSingleHead();
+uint8_t signalAIsDualHead();
+uint8_t signalBIsSingleHead();
+uint8_t signalBIsDualHead();
+uint8_t signalAAspectConfiguration();
+uint8_t signalBAspectConfiguration();
+void signalConfigToSignalType();
+void debounceConfig();
 
 #endif
 

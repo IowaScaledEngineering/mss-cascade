@@ -39,7 +39,7 @@ PROGRAMMER_TYPE=usbtiny
 PROGRAMMER_PORT=usb
 
 DEFINES = -DENABLE_WATCHDOG -DI2C_FREQ=100000
-SRCS = $(BASE_NAME).c detectors.c mss-codeline.c indicators.c i2c.c
+SRCS = $(BASE_NAME).c detectors.c mss-codeline.c indicators.c i2c.c signalOutput.c configuration.c
 INCS = mss-cascade.h
 
 AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B2

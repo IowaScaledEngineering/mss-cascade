@@ -230,3 +230,21 @@ void processDetectors(void)
 	readIRDetector();
 }
 
+uint8_t auxDetectInputState = 0;
+
+void debounceAuxDetectInputs()
+{
+	static uint8_t clock_A=0, clock_B=0;
+	uint8_t rawInput = ((~PING) & (_BV(PG3) | _BV(PG4)))>>3;
+	uint8_t delta = rawInput ^ auxDetectInputState;
+	uint8_t changes;
+
+	clock_A ^= clock_B;                     //Increment the counters
+	clock_B  = ~clock_B;
+	clock_A &= delta;                       //Reset the counters if no changes
+	clock_B &= delta;                       //were detected.
+	changes = ~((~delta) | clock_A | clock_B);
+	auxDetectInputState ^= changes;	
+}
+
+
