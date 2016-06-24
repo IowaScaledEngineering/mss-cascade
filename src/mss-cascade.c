@@ -44,11 +44,11 @@ void initialize4000HzTimer()
 
 SignalHeadType signalHeadTypeA1 = SIGNAL_3LIGHT_CA;
 SignalHeadType signalHeadTypeA2 = SIGNAL_3LIGHT_CA;
-SignalHeadType signalHeadTypeB1 = 0;
-SignalHeadType signalHeadTypeB2 = 0;
+SignalHeadType signalHeadTypeB1 = SIGNAL_3LIGHT_CA;
+SignalHeadType signalHeadTypeB2 = SIGNAL_3LIGHT_CA;
 
 
-SignalAspect signalAspectA1 = ASPECT_FL_YELLOW;
+SignalAspect signalAspectA1 = ASPECT_OFF;
 SignalAspect signalAspectA2 = ASPECT_OFF;
 SignalAspect signalAspectB1 = ASPECT_OFF;
 SignalAspect signalAspectB2 = ASPECT_OFF;
@@ -220,7 +220,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalA1(0,(eventFlags & EVENT_1HZ_BLINK),0, commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalA1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);				
+					setSignalA1(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_OFF:
 				default:
@@ -250,7 +250,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalA1((slice >= a_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= a_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalA1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					setSignalA1(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
 					break;
 				case ASPECT_OFF:
 				default:
@@ -291,7 +291,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalA2(0,(eventFlags & EVENT_1HZ_BLINK),0, commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalA2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);				
+					setSignalA2(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_OFF:
 				default:
@@ -322,7 +322,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalA2((slice >= a_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= a_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalA2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					setSignalA2(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
 					break;
 				case ASPECT_OFF:
 				default:
@@ -363,7 +363,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalB1(0,(eventFlags & EVENT_1HZ_BLINK),0, commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalB1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);				
+					setSignalB1(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_OFF:
 				default:
@@ -393,7 +393,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalB1((slice >= b_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= b_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalB1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					setSignalB1(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
 					break;
 				case ASPECT_OFF:
 				default:
@@ -421,7 +421,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalB1((slice < b_redStop && 0 == (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, 0, (slice < b_greenStop && (slice % 2))?(eventFlags & EVENT_1HZ_BLINK):0, commonAnode);
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalB1(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					setSignalB1(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
 					break;
 				case ASPECT_OFF:
 				default:
@@ -461,7 +461,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalB2(0,(eventFlags & EVENT_1HZ_BLINK),0, commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalB2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);				
+					setSignalB2(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_OFF:
 				default:
@@ -491,7 +491,7 @@ ISR(TIMER2_COMP_vect)
 					setSignalB2((slice >= b_redStop)?0:(eventFlags & EVENT_1HZ_BLINK),0,(slice >= b_greenStop)?0:(eventFlags & EVENT_1HZ_BLINK), commonAnode);				
 					break;
 				case ASPECT_FL_GREEN:
-					setSignalB2(0,0,(eventFlags ^= EVENT_1HZ_BLINK), commonAnode);
+					setSignalB2(0,0,(eventFlags & EVENT_1HZ_BLINK), commonAnode);
 					break;
 				case ASPECT_OFF:
 				default:
@@ -559,32 +559,32 @@ Bits   ST   AA    DA    AP   CL
 
 uint8_t signalAIsSingleHead()
 {
-	return (configSwitches & _BV(CONFIG_SIGNAL_A_DUAL))?1:0;
+	return (configSwitches & _BV(CONFIG_SIGNAL_A_DUAL))?0:1;
 }
 
 uint8_t signalAIsDualHead()
 {
-	return (configSwitches & _BV(CONFIG_SIGNAL_A_DUAL))?0:1;
+	return (signalAIsSingleHead())?0:1;
 }
 
 uint8_t signalBIsSingleHead()
 {
-	return (configSwitches & _BV(CONFIG_SIGNAL_B_DUAL))?1:0;
+	return (configSwitches & _BV(CONFIG_SIGNAL_B_DUAL))?0:1;
 }
 
 uint8_t signalBIsDualHead()
 {
-	return (configSwitches & _BV(CONFIG_SIGNAL_B_DUAL))?0:1;
+	return (signalBIsSingleHead())?0:1;
 }
 
 uint8_t signalAAspectConfiguration()
 {
-	return (signalAIsSingleHead()?4:0) + ((configSwitches & (_BV(CONFIG_SIGNAL_A_ASPECTS0) | _BV(CONFIG_SIGNAL_A_ASPECTS1)))>>CONFIG_SIGNAL_A_ASPECTS0);
+	return (signalAIsDualHead()?4:0) + ((configSwitches & (_BV(CONFIG_SIGNAL_A_ASPECTS0) | _BV(CONFIG_SIGNAL_A_ASPECTS1)))>>CONFIG_SIGNAL_A_ASPECTS0);
 }
 
 uint8_t signalBAspectConfiguration()
 {
-	return (signalBIsSingleHead()?4:0) + ((configSwitches & (_BV(CONFIG_SIGNAL_B_ASPECTS0) | _BV(CONFIG_SIGNAL_B_ASPECTS1)))>>CONFIG_SIGNAL_B_ASPECTS0);
+	return (signalBIsDualHead()?4:0) + ((configSwitches & (_BV(CONFIG_SIGNAL_B_ASPECTS0) | _BV(CONFIG_SIGNAL_B_ASPECTS1)))>>CONFIG_SIGNAL_B_ASPECTS0);
 }
 
 void signalConfigToSignalType()
@@ -593,33 +593,35 @@ void signalConfigToSignalType()
 	{
 		case 0:
 			signalHeadTypeA1 = signalHeadTypeB1 = SIGNAL_3LIGHT_CA;
-			signalHeadTypeA2 = signalHeadTypeB2 = signalAIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeA1;
 			break;
 			
 		case 1:
 			signalHeadTypeA1 = signalHeadTypeB1 = SIGNAL_3LIGHT_CC;
-			signalHeadTypeA2 = signalHeadTypeB2 = signalAIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeA1;
 			break;
 
 		case 2:
 			signalHeadTypeA1 = signalHeadTypeB1 = SIGNAL_3WIRE_RG_CA;
-			signalHeadTypeA2 = signalHeadTypeB2 = signalAIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeA1;
 			break;		
 
 		case 3:
 			signalHeadTypeA1 = signalHeadTypeB1 = SIGNAL_3WIRE_RG_CC;
-			signalHeadTypeA2 = signalHeadTypeB2 = signalAIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeA1;
 			break;		
 
 		case 4:
 			signalHeadTypeA1 = signalHeadTypeB1 = SIGNAL_2WIRE_RG;
-			signalHeadTypeA2 = signalHeadTypeB2 = signalAIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeA1;
 			break;		
 		
 		default:	
 			signalHeadTypeA1 = signalHeadTypeA2 = signalHeadTypeB1 = signalHeadTypeB2 = SIGNAL_UNKNOWN;
 			break;
 	}
+
+	if (SIGNAL_UNKNOWN == signalHeadTypeA1)
+		return;
+	// This is common for all cases except the unknown, so put it here
+	signalHeadTypeA2 = signalAIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeA1;
+	signalHeadTypeB2 = signalBIsSingleHead()?SIGNAL_3LIGHT_CA:signalHeadTypeB1;
+
 
 }
 
@@ -944,8 +946,8 @@ void translateCodelineToIndications()
 	newSignalAspectA1 = clXlate[signalAAspectConfiguration()].upperHead[codeLineB];
 	newSignalAspectA2 = clXlate[signalAAspectConfiguration()].lowerHead[codeLineB];
 
-	newSignalAspectB1 = clXlate[signalAAspectConfiguration()].upperHead[codeLineA];
-	newSignalAspectB2 = clXlate[signalAAspectConfiguration()].lowerHead[codeLineA];
+	newSignalAspectB1 = clXlate[signalBAspectConfiguration()].upperHead[codeLineA];
+	newSignalAspectB2 = clXlate[signalBAspectConfiguration()].lowerHead[codeLineA];
 
 
 	if (signalsApproachLit())
@@ -960,7 +962,7 @@ void translateCodelineToIndications()
 		if (codeLineB != INDICATION_STOP)
 		{
 			newSignalAspectB1 = ASPECT_OFF;
-			if (signalAIsDualHead())
+			if (signalBIsDualHead())
 				newSignalAspectB2 = ASPECT_OFF;
 		}
 	}
