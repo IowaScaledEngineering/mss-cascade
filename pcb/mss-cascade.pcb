@@ -1079,7 +1079,7 @@ Element["" "RPACK4-1206" "R1" "330" 1455.00mil 500.00mil -25.00mil 85.00mil 0 10
 
 Element["" "0805" "C16" "0.1uF" 1555.00mil 3495.00mil 90.00mil -30.00mil 0 100 ""]
 (
-	Pad[35.43mil -3.93mil 35.43mil 3.93mil 51.18mil 0.5588mm 57.18mil "1" "1" "square"]
+	Pad[35.43mil -3.93mil 35.43mil 3.93mil 51.18mil 22.00mil 57.18mil "1" "1" "square"]
 	Pad[-35.43mil -3.93mil -35.43mil 3.93mil 51.18mil 0.0000 57.18mil "2" "2" "square"]
 	ElementLine [-3.93mil 27.55mil 3.93mil 27.55mil 10.00mil]
 	ElementLine [-3.93mil -27.55mil 3.93mil -27.55mil 10.00mil]
@@ -1482,9 +1482,9 @@ Element["" "0805" "R3" "1k" 2325.00mil 555.43mil -116.50mil -71.93mil 0 100 ""]
 
 	)
 
-Element["hidename,selected" "STANDOFF_HEX_n4" "H4" "unknown" 170.00mil 3430.00mil 0.0000 100.00mil 0 100 "selected"]
+Element["hidename" "STANDOFF_HEX_n4" "H4" "unknown" 170.00mil 3430.00mil 0.0000 100.00mil 0 100 ""]
 (
-	Pin[0.0000 0.0000 293.68mil 20.00mil 299.68mil 128.50mil "screw" "1" "selected"]
+	Pin[0.0000 0.0000 293.68mil 20.00mil 299.68mil 128.50mil "screw" "1" ""]
 
 	)
 
@@ -4259,7 +4259,6 @@ Layer(5 "silk")
 	Text[1950.00mil 3515.00mil 0 100 "+" "clearline"]
 	Text[2135.00mil 3425.00mil 0 100 "12V" "clearline"]
 	Text[145.00mil 2345.00mil 0 100 "Iowa Scaled Engineering" "clearline"]
-	Text[145.00mil 2485.00mil 0 100 "(C) 2015 CC BY-SA" "clearline"]
 	Text[350.00mil 1955.00mil 0 100 "*" "clearline"]
 	Text[2905.00mil 1060.00mil 0 100 "*" "clearline"]
 	Text[2040.00mil 2770.00mil 0 100 "*" "clearline"]
@@ -4267,6 +4266,7 @@ Layer(5 "silk")
 	Text[2135.00mil 3485.00mil 0 100 "PWR" "clearline"]
 	Text[145.00mil 2415.00mil 0 100 "MSS-CASCADE v1.1" "clearline"]
 	Text[3090.00mil 3350.00mil 0 100 "8-20V" "clearline"]
+	Text[140.00mil 2480.00mil 0 100 "(C) 2016  CC BY-SA" "clearline"]
 )
 NetList()
 (
