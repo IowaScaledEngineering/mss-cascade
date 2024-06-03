@@ -529,6 +529,11 @@
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
     )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/SM04B-SRSS-TB.STEP"
+      (offset (xyz 0 1.27 -0.381))
+      (scale (xyz 1 1 1))
+      (rotate (xyz -90 0 0))
+    )
   )
 
   (footprint "MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
@@ -1339,6 +1344,11 @@
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
     )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/Terminal_Block_2Pos_5mm.stp"
+      (offset (xyz -2.54 -3.556 0))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 0))
+    )
   )
 
   (footprint "Capacitor_SMD:C_0805_2012Metric" (layer "F.Cu")
@@ -1557,7 +1567,7 @@
     (pad "15" smd roundrect (at 2.575 -3.175) (size 1.75 0.6) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.25)
       (net 57 "/B_ADV_APPROACH_5V") (pintype "output") (tstamp 9c143788-cb73-44d7-b904-7d2f824a15d0))
     (pad "16" smd roundrect (at 2.575 -4.445) (size 1.75 0.6) (layers "F.Cu" "F.Paste" "F.Mask") (roundrect_rratio 0.25) (tstamp b564113a-9fea-4488-937d-b997a4932669))
-    (model "${KICAD6_3DMODEL_DIR}/Package_SO.3dshapes/SO-16_3.9x9.9mm_P1.27mm.wrl"
+    (model "${KICAD6_3DMODEL_DIR}/Package_SO.3dshapes/SOIC-16_3.9x9.9mm_P1.27mm.step"
       (offset (xyz 0 0 0))
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
@@ -1863,6 +1873,11 @@
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
     )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/Terminal_Block_3Pos_3.5mm.step"
+      (offset (xyz -1.905 -3.683 0))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 0))
+    )
   )
 
   (footprint "Resistor_SMD:R_0805_2012Metric" (layer "F.Cu")
@@ -1980,6 +1995,11 @@
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
     )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/Terminal_Block_3Pos_3.5mm.step"
+      (offset (xyz -1.905 -3.683 0))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 0))
+    )
   )
 
   (footprint "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm" (layer "F.Cu")
@@ -2092,6 +2112,11 @@
       (offset (xyz 0 0 0))
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
+    )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/SM04B-SRSS-TB.STEP"
+      (offset (xyz 0 1.27 -0.381))
+      (scale (xyz 1 1 1))
+      (rotate (xyz -90 0 0))
     )
   )
 
@@ -2305,6 +2330,11 @@
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
     )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/Terminal_Block_3Pos_3.5mm.step"
+      (offset (xyz -1.905 -3.683 0))
+      (scale (xyz 1 1 1))
+      (rotate (xyz 0 0 0))
+    )
   )
 
   (footprint "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm" (layer "F.Cu")
@@ -2417,6 +2447,11 @@
       (offset (xyz 0 0 0))
       (scale (xyz 1 1 1))
       (rotate (xyz 0 0 0))
+    )
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/SM04B-SRSS-TB.STEP"
+      (offset (xyz 0 1.27 -0.381))
+      (scale (xyz 1 1 1))
+      (rotate (xyz -90 0 0))
     )
   )
 
@@ -2697,10 +2732,10 @@
       (net 29 "Net-(J5-Pad7)") (pintype "passive") (tstamp 51e62bde-584f-4dd1-be91-def2f47c4ec5))
     (pad "8" thru_hole circle (at 8.89 -2.54 180) (size 1.5 1.5) (drill 0.76) (layers *.Cu *.Mask)
       (net 30 "/A_APPROACH_DIV") (pintype "passive") (tstamp b5a41e55-b85f-4e51-8fb4-93505600b574))
-    (model "${KICAD6_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_54602-x08_Horizontal.wrl"
-      (offset (xyz 0 0 0))
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/RJ45_Amphenol_54602-908LF.step"
+      (offset (xyz 4.445 -6.35 0))
       (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 0))
+      (rotate (xyz -90 0 0))
     )
   )
 
@@ -3000,10 +3035,10 @@
       (net 29 "Net-(J5-Pad7)") (pintype "passive") (tstamp 93e1382c-739e-46b4-83d8-070ac4188d2e))
     (pad "8" thru_hole circle (at 8.89 -2.54) (size 1.5 1.5) (drill 0.76) (layers *.Cu *.Mask)
       (net 32 "/B_APPROACH_DIV") (pintype "passive") (tstamp 50700cdf-e4b6-4ac7-a195-e319fc5e6ff1))
-    (model "${KICAD6_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_54602-x08_Horizontal.wrl"
-      (offset (xyz 0 0 0))
+    (model "/home/ndholmes/data/projects/ise-kicad/3DModels/RJ45_Amphenol_54602-908LF.step"
+      (offset (xyz 4.445 -6.35 0))
       (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 0))
+      (rotate (xyz -90 0 0))
     )
   )
 
