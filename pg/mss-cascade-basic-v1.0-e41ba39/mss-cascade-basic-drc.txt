@@ -1,0 +1,10 @@
+** Drc report for /home/data/design/projects/mss-cascade/kicad/mss-cascade-basic/mss-cascade-basic.kicad_pcb **
+** Created on 2024-06-30 21:42:01 **
+
+** Found 0 DRC violations **
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** End of Report **
