@@ -176,6 +176,8 @@ int main(void)
 	DDRG  = 0b00000011;
 	PORTG = 0b00011100;
 
+	CLKPR = _BV(CLKPCE);
+	CLKPR = _BV(CLKPCE) | _BV(CLKPS1) | _BV(CLKPS0);
 	
 	setOccupancyAOff();
 	setOccupancyALEDOff();
