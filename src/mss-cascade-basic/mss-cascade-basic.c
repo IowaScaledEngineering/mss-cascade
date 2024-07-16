@@ -62,6 +62,91 @@ void readInputs()
 }
 
 
+typedef enum 
+{
+	INDICATION_STOP               = 0,
+	INDICATION_APPROACH           = 1,
+	INDICATION_APPROACH_DIVERGING = 2,
+	INDICATION_ADVANCE_APPROACH   = 3,
+	INDICATION_CLEAR              = 4
+} MSSPortIndication_t;
+
+typedef struct
+{
+	MSSPortIndication_t indication;
+	DebounceState8_t debounce;
+} MSSPort_t;
+
+typedef struct
+{
+	uint8_t* adjacentPort;
+	uint8_t adjacentPin;
+	uint8_t* approachPort;
+	uint8_t approachPin;
+	uint8_t* advApproachPort;
+	uint8_t advApproachPin;
+	uint8_t* divApproachPort;
+	uint8_t divApproachPin;
+} MSSPortPins_t;
+
+
+
+	//  PA7 - Input  - B MSS - Adjacent
+	//  PA6 - Input  - B MSS - Approach
+	//  PA5 - Input  - B MSS - Advance Approach
+	//  PA4 - Input  - A MSS - Adjacent
+	//  PA3 - Input  - A MSS - Approach
+	//  PA2 - Input  - A MSS - Advance Approach
+
+#define MSS_MASK_ADJACENT      0x01
+#define MSS_MASK_APPROACH      0x02
+#define MSS_MASK_ADV_APPROACH  0x04
+#define MSS_MASK_DIV_APPROACH  0x08
+
+void mssReadPort(MSSPort_t* port, const MSSPortPins_t* const pins)
+{
+	uint8_t mssInputState = 0;
+	
+	if ( *(port->adjacentPort) & (1<<port->adjacentPin) )
+		mssInputState |= MSS_MASK_ADJACENT;
+
+	if ( *(port->approachPin) & (1<<port->approachPin) )
+		mssInputState |= MSS_MASK_APPROACH;
+
+	if ( *(port->advApproachPort) & (1<<port->advApproachPin) )
+		mssInputState |= MSS_MASK_ADV_APPROACH;
+		
+	if ( NULL != port->divApproachPort && (*(port->divApproachPort) & (1<<port->divApproachPin)) )
+		mssInputState |= MSS_MASK_DIV_APPROACH;
+		
+
+	debounce8(mssInputState, &(port->debounce));
+
+	mssInputState = getDebouncedState(&(port->debounce));
+	
+	if (mssInputState & MSS_MASK_ADJACENT)
+	{
+		port->indication = INDICATION_STOP;
+	}
+	else if (mssInputState & MSS_MASK_APPROACH)
+	{
+		if (mssInputState & MSS_MASK_DIV_APPROACH)
+			port->indication = INDICATION_APPROACH_DIVERGING;
+		else
+			port->indication = INDICATION_APPROACH;
+	}
+	else if (mssInputState & MSS_MASK_ADV_APPROACH)
+	{
+		port->indication = INDICATION_ADVANCE_APPROACH;
+	}
+	else
+	{
+		port->indication = INDICATION_CLEAR;
+	}
+}
+
+
+
 void mss_readCodeline()
 {
 	static uint32_t lastRead = 0;
@@ -87,6 +172,11 @@ void mss_readCodeline()
 
 int main(void)
 {
+	MSSPort_t mssPortA;
+	MSSPort_t mssPortB;
+	const MSSPortPins_t const mssPortAPins = { &PORTA, 4, &PORTA, 3, &PORTA, 2, NULL, 0 };
+	const MSSPortPins_t const mssPortBPins = { &PORTA, 7, &PORTA, 6, &PORTA, 5, NULL, 0 };
+
 	// Deal with watchdog first thing
 	MCUSR = 0;              // Clear reset status
 	wdt_reset();            // Reset the WDT, just in case it's still enabled over reset
@@ -127,8 +217,10 @@ int main(void)
 	while(1)
 	{
 		wdt_reset();
-		uint8_t inputState = getDebouncedState(&inputDebouncer);
-		readInputs();
+
+		// if time to read...
+		mssReadPort(&mssPortA, &mssPortAPins);
+		mssReadPort(&mssPortB, &mssPortBPins);
 	}
 }
 
