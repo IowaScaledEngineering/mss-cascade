@@ -26,41 +26,42 @@ LICENSE:
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 #include <avr/pgmspace.h>
 #include <avr/sleep.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "spiflash.h"
-#include "audioAndLights.h"
-#include "ispl.h"
 #include "debouncer.h"
 
-#define MAX_TRACKS 6
+//  Definitions:
+//  Physical   - The state of the MSS wires
+//  Indication - The "meaning" to be conveyed to a train viewing the signal
+//  Aspect     - The appearance of the signal - color, flashing, etc.
 
-DebounceState8_t inputDebouncer;
-DebounceState8_t mssDebouncer;
-
-void readInputs()
+volatile uint32_t millis = 0;
+uint32_t getMillis()
 {
-	static uint32_t lastRead = 0;
-	uint8_t currentInputState = 0;
-	uint32_t currentMillis = getMillis();
-	if (((uint32_t)currentMillis - lastRead) > 10)
+	uint32_t retmillis;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) 
 	{
-		lastRead = currentMillis;
+		retmillis = millis;
+	}
 
-		// Inputs (bit / io / name):  
-		//  0 - PA4 - Enable 1
-		//  1 - PB0 - SW1
-		//  2 - PB2 - SW2
-		//  3 - PB4 - SW3
-		//  4 - PB5 - SW4
-		//  5 - PB6 - SW5
-		currentInputState = ~(((PINA & _BV(PA4))>>4) | ((PINB & _BV(PB0))<<1) | (PINB & _BV(PB2)) | ((PINB & (_BV(PB4) | _BV(PB5) | _BV(PB6)))>>1));
-		debounce8(currentInputState, &inputDebouncer);
-	} 
+	return retmillis;
 }
 
+
+typedef enum
+{
+	ASPECT_OFF          = 0,
+	ASPECT_GREEN        = 1,
+	ASPECT_YELLOW       = 2,
+	ASPECT_FL_YELLOW    = 3,
+	ASPECT_RED          = 4,
+	ASPECT_FL_GREEN     = 5,
+	ASPECT_FL_RED       = 6,
+	ASPECT_LUNAR        = 7
+} MSSSignalAspect_t;
 
 typedef enum 
 {
@@ -79,46 +80,59 @@ typedef struct
 
 typedef struct
 {
-	uint8_t* adjacentPort;
+	volatile uint8_t* adjacentPort;
 	uint8_t adjacentPin;
-	uint8_t* approachPort;
+	volatile uint8_t* approachPort;
 	uint8_t approachPin;
-	uint8_t* advApproachPort;
+	volatile uint8_t* advApproachPort;
 	uint8_t advApproachPin;
-	uint8_t* divApproachPort;
+	volatile uint8_t* divApproachPort;
 	uint8_t divApproachPin;
 } MSSPortPins_t;
 
-
-
-	//  PA7 - Input  - B MSS - Adjacent
-	//  PA6 - Input  - B MSS - Approach
-	//  PA5 - Input  - B MSS - Advance Approach
-	//  PA4 - Input  - A MSS - Adjacent
-	//  PA3 - Input  - A MSS - Approach
-	//  PA2 - Input  - A MSS - Advance Approach
+MSSSignalAspect_t aspectSignalA;
+MSSSignalAspect_t aspectSignalB;
 
 #define MSS_MASK_ADJACENT      0x01
 #define MSS_MASK_APPROACH      0x02
 #define MSS_MASK_ADV_APPROACH  0x04
 #define MSS_MASK_DIV_APPROACH  0x08
 
+void mssPortInitialize(MSSPort_t* port)
+{
+	initDebounceState8(&port->debounce, 0x00);
+	port->indication = INDICATION_STOP;
+}
+
+bool mssPortApproach(MSSPort_t* port)
+{
+	switch(port->indication)
+	{
+		case INDICATION_STOP:
+		case INDICATION_APPROACH:
+			return true;
+
+		default:
+			break;
+	}
+	return false;
+}
+
 void mssReadPort(MSSPort_t* port, const MSSPortPins_t* const pins)
 {
 	uint8_t mssInputState = 0;
 	
-	if ( *(port->adjacentPort) & (1<<port->adjacentPin) )
+	if ( *(pins->adjacentPort) & (1<<pins->adjacentPin) )
 		mssInputState |= MSS_MASK_ADJACENT;
 
-	if ( *(port->approachPin) & (1<<port->approachPin) )
+	if ( *(pins->approachPort) & (1<<pins->approachPin) )
 		mssInputState |= MSS_MASK_APPROACH;
 
-	if ( *(port->advApproachPort) & (1<<port->advApproachPin) )
+	if ( *(pins->advApproachPort) & (1<<pins->advApproachPin) )
 		mssInputState |= MSS_MASK_ADV_APPROACH;
 		
-	if ( NULL != port->divApproachPort && (*(port->divApproachPort) & (1<<port->divApproachPin)) )
+	if ( NULL != pins->divApproachPort && (*(pins->divApproachPort) & (1<<pins->divApproachPin)) )
 		mssInputState |= MSS_MASK_DIV_APPROACH;
-		
 
 	debounce8(mssInputState, &(port->debounce));
 
@@ -145,37 +159,213 @@ void mssReadPort(MSSPort_t* port, const MSSPortPins_t* const pins)
 	}
 }
 
-
-
-void mss_readCodeline()
+#define MSS_ASPECT_OPTION_APPRCH_LIGHTING   0x01
+#define MSS_ASPECT_OPTION_FOUR_INDICATION   0x02
+void mssIndicationToSingleHeadAspect(MSSPortIndication_t indication, MSSSignalAspect_t* aspect, uint8_t options, bool approachActive)
 {
-	static uint32_t lastRead = 0;
-	uint8_t currentInputState = 0;
-	uint32_t currentMillis = getMillis();
-	if (((uint32_t)currentMillis - lastRead) > 10)
+	// If we're approach lit and there's nothing on approach, turn off
+	if (!approachActive && (options & MSS_ASPECT_OPTION_APPRCH_LIGHTING))
 	{
-		lastRead = currentMillis;
+		*aspect = ASPECT_OFF;
+		return;
+	}
 
-		// Inputs (bit / io / name):  
-		//  0 - PA4 - Enable 1
-		//  1 - PB0 - SW1
-		//  2 - PB2 - SW2
-		//  3 - PB4 - SW3
-		//  4 - PB5 - SW4
-		//  5 - PB6 - SW5
-		currentInputState = ~(((PINA & _BV(PA4))>>4) | ((PINB & _BV(PB0))<<1) | (PINB & _BV(PB2)) | ((PINB & (_BV(PB4) | _BV(PB5) | _BV(PB6)))>>1));
-		debounce8(currentInputState, &inputDebouncer);
-	} 
+	switch (indication)
+	{
+		case INDICATION_STOP:
+		default:
+			*aspect = ASPECT_RED;
+			break;
+
+		case INDICATION_APPROACH:
+		case INDICATION_APPROACH_DIVERGING:
+			*aspect = ASPECT_YELLOW;
+			break;
+
+		case INDICATION_ADVANCE_APPROACH:
+			*aspect = (options & MSS_ASPECT_OPTION_FOUR_INDICATION)?ASPECT_FL_YELLOW:ASPECT_GREEN;
+			break;
+
+		case INDICATION_CLEAR:
+			*aspect = ASPECT_GREEN;
+			break;
+	}
 }
 
+
+void isr_AspectToOutputs(MSSSignalAspect_t signalAspect, uint8_t *redPWM, uint8_t* yellowPWM, uint8_t* greenPWM, uint8_t flasher)
+{
+	uint8_t targetPWMRed = 0;
+	uint8_t targetPWMYellow = 0;
+	uint8_t targetPWMGreen = 0;
+	
+	switch(signalAspect)
+	{
+		case ASPECT_RED:
+			targetPWMRed = 0x1F;
+			break;
+
+		case ASPECT_FL_RED:
+			targetPWMRed = (flasher)?0x1F:0x00;
+			break;
+
+		case ASPECT_YELLOW:
+			targetPWMYellow = 0x1F;
+			break;
+
+		case ASPECT_FL_YELLOW:
+			targetPWMYellow = (flasher)?0x1F:0x00;
+			break;
+			
+		case ASPECT_GREEN:
+			targetPWMGreen = 0x1F;
+			break;
+
+		case ASPECT_FL_GREEN:
+			targetPWMGreen = (flasher)?0x1F:0x00;
+			break;
+
+		default:
+			break;
+	}
+
+	if (targetPWMRed > *redPWM)
+		(*redPWM)++;
+	else if (*redPWM != 0)
+		(*redPWM)--;
+
+	if (targetPWMYellow > *yellowPWM)
+		(*yellowPWM)++;
+	else if (*yellowPWM != 0)
+		(*yellowPWM)--;
+
+	if (targetPWMGreen > *greenPWM)
+		(*greenPWM)++;
+	else if (*greenPWM != 0)
+		(*greenPWM)--;
+}
+
+
+ISR(TIMER0_COMPA_vect) 
+{
+	static uint8_t sigANextRed = 0;
+	static uint8_t sigANextYellow = 0;
+	static uint8_t sigANextGreen = 0;
+
+	static uint8_t sigBNextRed = 0;
+	static uint8_t sigBNextYellow = 0;
+	static uint8_t sigBNextGreen = 0;
+	static uint8_t flasherCounter = 0;
+	static uint8_t flasher = 0;
+	static uint8_t pwmCounter = 0;
+	static uint8_t subMillisCounter = 0;
+	
+	// The ISR does two main things - updates the LED outputs since
+	//  PWM is done through software, and updates millis which is used
+	//  to trigger various events
+	// We need this to run at roughly 125 Hz * number of PWM levels.  If we assume 32, that makes a nice round 4kHz
+
+	// First, set all the PWMs so as to minimize jitter
+	if (sigANextRed > pwmCounter)
+		PORTA &= ~_BV(PA0);
+	else
+		PORTA |= _BV(PA0);
+
+	if (sigANextYellow > pwmCounter)
+		PORTA &= ~_BV(PA1);
+	else
+		PORTA |= _BV(PA1);
+
+	if (sigANextGreen > pwmCounter)
+		PORTB &= ~_BV(PB3);
+	else
+		PORTB |= _BV(PB3);
+
+	if (sigBNextRed > pwmCounter)
+		PORTB &= ~_BV(PB4);
+	else
+		PORTB |= _BV(PB4);
+
+	if (sigBNextYellow > pwmCounter)
+		PORTB &= ~_BV(PB5);
+	else
+		PORTB |= _BV(PB5);
+
+	if (sigBNextGreen > pwmCounter)
+		PORTB &= ~_BV(PB6);
+	else
+		PORTB |= _BV(PB6);
+
+	// Now do all the counter incrementing and such
+	if (++subMillisCounter >= 4)
+	{
+		subMillisCounter = 0;
+		millis++;
+	}
+
+	pwmCounter = (pwmCounter + 1) & 0x1F;
+	if (++pwmCounter >= 32)
+	{
+		pwmCounter = 0;
+		flasherCounter++;
+		if (flasherCounter > 187)
+		{
+			flasher ^= 0x01;
+			flasherCounter = 0;
+		}
+
+		// We rolled over the PWM counter, calculate the next PWM widths
+		// This runs at 125 frames/second essentially
+		// Searchlight logic
+		// Dark to on takes ~1/3 second, or 42 frames
+		// Changeovers take 33 frames
+		// End to end (yellow to green, green to yellow)
+		//   12 frames to red
+		//   12 frames to target color
+		//   25 frames back to red
+		//   15 frames back to target color
+
+		isr_AspectToOutputs(aspectSignalA, &sigANextRed, &sigANextYellow, &sigANextGreen, flasher);
+		isr_AspectToOutputs(aspectSignalB, &sigBNextRed, &sigBNextYellow, &sigBNextGreen, flasher);
+
+	}
+}
+
+void initializeTimer()
+{
+	TIMSK = 0;                                    // Timer interrupts OFF
+	// Set up Timer/Counter0 for 100Hz clock
+	TCCR0A = 0b00000001;  // CTC Mode
+	TCCR0B = 0b00000010;  // CS01 - 1:8 prescaler
+	OCR0A = 250;           // 8MHz / 8 / 125 = 8kHz
+	TIMSK = _BV(OCIE0A);
+}
+
+#define OPTION_A_APPROACH_LIGHTING   0x04
+#define OPTION_B_FOUR_ASPECT         0x02
+#define OPTION_C_RESERVED            0x01
+
+void readOptions(DebounceState8_t* optionsDebouncer)
+{
+	// Inputs (bit / io / name):  
+
+	//  1 - PB0 - Option Jumper C (JP7)
+	//  2 - PB2 - Option Jumper B (JP8)
+	//  3 - PB4 - Option Jumper A (JP9)
+
+	debounce8(0x07 & (~PINB), optionsDebouncer);
+}
 
 
 int main(void)
 {
 	MSSPort_t mssPortA;
 	MSSPort_t mssPortB;
-	const MSSPortPins_t const mssPortAPins = { &PORTA, 4, &PORTA, 3, &PORTA, 2, NULL, 0 };
-	const MSSPortPins_t const mssPortBPins = { &PORTA, 7, &PORTA, 6, &PORTA, 5, NULL, 0 };
+	DebounceState8_t optionsDebouncer;
+	uint32_t lastReadTime = 0;
+	uint32_t currentTime = 0;
+	const MSSPortPins_t const mssPortAPins = { &PINA, 4, &PINA, 3, &PINA, 2, NULL, 0 };
+	const MSSPortPins_t const mssPortBPins = { &PINA, 7, &PINA, 6, &PINA, 5, NULL, 0 };
 
 	// Deal with watchdog first thing
 	MCUSR = 0;              // Clear reset status
@@ -208,19 +398,46 @@ int main(void)
 	PORTB = 0b11111111;
 	DDRB  = 0b01111000;
 
-	initDebounceState8(&inputDebouncer, 0x00);
-	initDebounceState8(&mssDebouncer, 0x00);
+	initializeTimer();
+	initDebounceState8(&optionsDebouncer, 0x00);
 
+
+	mssPortInitialize(&mssPortA);
+	mssPortInitialize(&mssPortB);
 	sei();
 	wdt_reset();
+
+	aspectSignalA = ASPECT_RED;
+	aspectSignalB = ASPECT_RED;
 
 	while(1)
 	{
 		wdt_reset();
 
-		// if time to read...
-		mssReadPort(&mssPortA, &mssPortAPins);
-		mssReadPort(&mssPortB, &mssPortBPins);
+		currentTime = getMillis();
+		if (((uint32_t)currentTime - lastReadTime) > 10)
+		{
+			uint8_t options = 0;
+
+			// if time to read...
+			lastReadTime = currentTime;
+
+			readOptions(&optionsDebouncer);
+			mssReadPort(&mssPortA, &mssPortAPins);
+			mssReadPort(&mssPortB, &mssPortBPins);
+
+			if (getDebouncedState(&optionsDebouncer) & OPTION_A_APPROACH_LIGHTING)
+				options |= MSS_ASPECT_OPTION_APPRCH_LIGHTING;
+
+			if (getDebouncedState(&optionsDebouncer) & OPTION_B_FOUR_ASPECT)
+				options |= MSS_ASPECT_OPTION_FOUR_INDICATION;
+
+//			options = MSS_ASPECT_OPTION_FOUR_INDICATION | MSS_ASPECT_OPTION_APPRCH_LIGHTING;
+
+			mssIndicationToSingleHeadAspect(mssPortA.indication, &aspectSignalB, options, mssPortApproach(&mssPortB));
+			mssIndicationToSingleHeadAspect(mssPortB.indication, &aspectSignalA, options, mssPortApproach(&mssPortA));
+		}
+
 	}
 }
 
