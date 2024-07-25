@@ -38,6 +38,8 @@ LICENSE:
 //  Indication - The "meaning" to be conveyed to a train viewing the signal
 //  Aspect     - The appearance of the signal - color, flashing, etc.
 
+uint8_t globalOptions = 0;
+
 volatile uint32_t millis = 0;
 uint32_t getMillis()
 {
@@ -161,6 +163,8 @@ void mssReadPort(MSSPort_t* port, const MSSPortPins_t* const pins)
 
 #define MSS_ASPECT_OPTION_APPRCH_LIGHTING   0x01
 #define MSS_ASPECT_OPTION_FOUR_INDICATION   0x02
+#define MSS_ASPECT_OPTION_SEARCHLIGHT       0x04
+
 void mssIndicationToSingleHeadAspect(MSSPortIndication_t indication, MSSSignalAspect_t* aspect, uint8_t options, bool approachActive)
 {
 	// If we're approach lit and there's nothing on approach, turn off
@@ -192,106 +196,337 @@ void mssIndicationToSingleHeadAspect(MSSPortIndication_t indication, MSSSignalAs
 	}
 }
 
-
-void isr_AspectToOutputs(MSSSignalAspect_t signalAspect, uint8_t *redPWM, uint8_t* yellowPWM, uint8_t* greenPWM, uint8_t flasher)
+typedef struct
 {
-	uint8_t targetPWMRed = 0;
-	uint8_t targetPWMYellow = 0;
-	uint8_t targetPWMGreen = 0;
-	
-	switch(signalAspect)
-	{
-		case ASPECT_RED:
-			targetPWMRed = 0x1F;
-			break;
+	MSSSignalAspect_t startAspect;
+	MSSSignalAspect_t endAspect;
+	uint8_t phase;
+	uint8_t redPWM;
+	uint8_t yellowPWM;
+	uint8_t greenPWM;
+} SignalState_t;
 
-		case ASPECT_FL_RED:
-			targetPWMRed = (flasher)?0x1F:0x00;
-			break;
-
-		case ASPECT_YELLOW:
-			targetPWMYellow = 0x1F;
-			break;
-
-		case ASPECT_FL_YELLOW:
-			targetPWMYellow = (flasher)?0x1F:0x00;
-			break;
-			
-		case ASPECT_GREEN:
-			targetPWMGreen = 0x1F;
-			break;
-
-		case ASPECT_FL_GREEN:
-			targetPWMGreen = (flasher)?0x1F:0x00;
-			break;
-
-		default:
-			break;
-	}
-
-	if (targetPWMRed > *redPWM)
-		(*redPWM)++;
-	else if (*redPWM != 0)
-		(*redPWM)--;
-
-	if (targetPWMYellow > *yellowPWM)
-		(*yellowPWM)++;
-	else if (*yellowPWM != 0)
-		(*yellowPWM)--;
-
-	if (targetPWMGreen > *greenPWM)
-		(*greenPWM)++;
-	else if (*greenPWM != 0)
-		(*greenPWM)--;
+bool isGreenToYellow(MSSSignalAspect_t startAspect, MSSSignalAspect_t endAspect)
+{
+	if ((startAspect == ASPECT_GREEN || startAspect == ASPECT_FL_GREEN) 
+		&& (endAspect == ASPECT_YELLOW || endAspect == ASPECT_FL_YELLOW))
+		return true;
+	return false;
 }
 
+bool isYellowToGreen(MSSSignalAspect_t startAspect, MSSSignalAspect_t endAspect)
+{
+	if ((startAspect == ASPECT_YELLOW || startAspect == ASPECT_FL_YELLOW)
+			&& (endAspect == ASPECT_GREEN || endAspect == ASPECT_FL_GREEN))
+		return true;
+	return false;
+}
+
+const uint16_t const searchlightPWMsThroughRed[32] PROGMEM = { 
+	27648,
+	17408,
+	12288,
+	0,
+	17,
+	25,
+	25,
+	17,
+	0,
+	384,
+	544,
+	551,
+	544,
+	544,
+	704,
+	704,
+	544,
+	544,
+	544,
+	551,
+	544,
+	384,
+	236,
+	17,
+	22,
+	17,
+	236,
+	384,
+	544,
+	704,
+	864,
+	992}; 
+
+
+const uint16_t const searchlightPWMsInvolvingRed[] PROGMEM = { 
+	31744,
+	27648,
+	22528,
+	17408,
+	12288,
+	5120,
+	0,
+	160,
+	384,
+	544,
+	704,
+	864,
+	992 }; 
+
+void isr_AspectToOutputs(MSSSignalAspect_t signalAspect, SignalState_t* sig, uint8_t flasher, uint8_t options)
+{
+	bool searchlightMode = false;
+	
+	if (MSS_ASPECT_OPTION_SEARCHLIGHT & options)
+		searchlightMode = true;
+	
+	// If it's a flashing aspect, mux the flasher in with the color
+	if (signalAspect == ASPECT_FL_GREEN || signalAspect == ASPECT_FL_YELLOW || signalAspect == ASPECT_FL_RED)
+		signalAspect = (flasher)?signalAspect:ASPECT_OFF;
+
+	// If we're not currently running a transition and the aspect changed, start the transitioning
+	if (sig->startAspect == sig->endAspect)
+	{
+		sig->phase = 0;
+		sig->endAspect = signalAspect;
+	}
+
+	if (sig->startAspect != sig->endAspect)
+	{
+		// We're in transition towards the end aspect
+		// How we do this depends upon the type of signal and the transition being made
+		// For searchlights (US&S H, H2, H5 and GRS SA), green to yellow or vice versa passes through red and there's a little bounce giving
+		//  a second red, but there's no long fade because the bulb never turns off.  
+		// For searchlights passing between any color and red (or vice versa), it's just a quick bounce as the roundels move - no fade
+		// For all other signals and searchlights going on or off, there's a fade in/out
+
+		if (searchlightMode && sig->startAspect != ASPECT_OFF && sig->endAspect != ASPECT_OFF)
+		{
+			uint8_t idx = sig->phase;
+
+			if (isGreenToYellow(sig->startAspect, sig->endAspect) || isYellowToGreen(sig->startAspect, sig->endAspect))
+			{
+				// *****************
+				// Searchlight changing yellow-green or green-yellow through red
+				// *****************
+
+				// These are the special ones that bounce through red (at 60 frames/sec measured off my H2)
+				// Yellow to green
+				// ~6 frames to red
+				// ~6 frames to green
+				// ~12 frames back to red
+				// ~8 frames to green
+				
+				// This uint16 is comprised of:
+				//  0:4 - red channel
+				//  5:9 - up channel
+				//  10:14 - down channel
+				
+				uint16_t pwmWord = pgm_read_word(&searchlightPWMsThroughRed[idx]);
+
+				sig->redPWM = pwmWord & 0x1F;
+				if (isGreenToYellow(sig->startAspect, sig->endAspect))
+				{
+					sig->greenPWM = (pwmWord>>10) & 0x1F;
+					sig->yellowPWM = (pwmWord>>5) & 0x1F;
+				} else {
+					sig->greenPWM = (pwmWord>>5) & 0x1F;
+					sig->yellowPWM = (pwmWord>>10) & 0x1F;
+				}
+				sig->phase++;
+				if (sig->phase == sizeof(searchlightPWMsThroughRed)/sizeof(uint16_t))
+				{
+					// We're done
+					sig->startAspect = sig->endAspect;
+				}
+			}
+			else
+			{
+				// *****************
+				// Searchlight changing from yellow or green to red, or red to yellow or green
+				// *****************
+				uint16_t pwmWord = pgm_read_word(&searchlightPWMsInvolvingRed[idx]);
+				
+				uint8_t upPhase = pwmWord>>5;
+				uint8_t downPhase = pwmWord>>10;
+
+				sig->redPWM = sig->yellowPWM = sig->greenPWM = 0;
+
+				switch(sig->startAspect)
+				{
+					case ASPECT_RED:
+					case ASPECT_FL_RED:
+						sig->redPWM = downPhase;
+						break;
+
+					case ASPECT_YELLOW:
+					case ASPECT_FL_YELLOW:
+						sig->yellowPWM = downPhase;
+						break;
+
+					case ASPECT_GREEN:
+					case ASPECT_FL_GREEN:
+						sig->greenPWM = downPhase;
+						break;
+
+					default:
+						break;
+				}
+
+				switch(sig->endAspect)
+				{
+					case ASPECT_RED:
+					case ASPECT_FL_RED:
+						sig->redPWM = upPhase;
+						break;
+
+					case ASPECT_YELLOW:
+					case ASPECT_FL_YELLOW:
+						sig->yellowPWM = upPhase;
+						break;
+
+					case ASPECT_GREEN:
+					case ASPECT_FL_GREEN:
+						sig->greenPWM = upPhase;
+						break;
+
+					default:
+						break;
+				}
+
+				sig->phase++;
+				if (sig->phase == sizeof(searchlightPWMsInvolvingRed)/sizeof(uint16_t))
+				{
+					// We're done
+					sig->phase = 0;
+					sig->startAspect = sig->endAspect;
+				}
+			}
+
+		} else {
+			// *****************
+			// All other signals, where the bulbs fade in/out (and searchlights to or from off)
+			// *****************
+			uint8_t targetPWMRed = 0, targetPWMYellow = 0, targetPWMGreen = 0;
+			uint8_t finalState = 0;
+			
+			switch(sig->endAspect)
+			{
+				case ASPECT_RED:
+				case ASPECT_FL_RED:
+					targetPWMRed = 0x1F;
+					break;
+
+				case ASPECT_YELLOW:
+				case ASPECT_FL_YELLOW:
+					targetPWMYellow = 0x1F;
+					break;
+					
+				case ASPECT_GREEN:
+				case ASPECT_FL_GREEN:
+					targetPWMGreen = 0x1F;
+					break;
+
+				default:
+					break;
+			}
+			
+			if (targetPWMRed > sig->redPWM)
+				sig->redPWM++;
+			else if (targetPWMRed < sig->redPWM )
+				sig->redPWM--;
+			else
+				finalState += 1;
+
+			if (targetPWMYellow > sig->yellowPWM)
+				sig->yellowPWM++;
+			else if (targetPWMYellow < sig->yellowPWM)
+				sig->yellowPWM--;
+			else
+				finalState += 1;
+
+			if (targetPWMGreen > sig->greenPWM)
+				sig->greenPWM++;
+			else if (targetPWMGreen < sig->greenPWM)
+				sig->greenPWM--;
+			else
+				finalState += 1;
+
+			if (3 == finalState)
+			{
+				sig->phase = 0;
+				sig->startAspect = sig->endAspect;
+			}
+		}
+
+	} else {
+		// We're at steady state and the signal isn't changing, so 
+		// just set the PWM based on the aspect for safety
+		sig->redPWM = sig->yellowPWM = sig->greenPWM = 0;
+		switch(sig->startAspect)
+		{
+			case ASPECT_RED:
+			case ASPECT_FL_RED:
+				sig->redPWM = 0x1F;
+				break;
+
+			case ASPECT_YELLOW:
+			case ASPECT_FL_YELLOW:
+				sig->yellowPWM = 0x1F;
+				break;
+
+			case ASPECT_GREEN:
+			case ASPECT_FL_GREEN:
+				sig->greenPWM = 0x1F;
+				break;
+
+			default:
+				break;
+		}
+	}
+}
 
 ISR(TIMER0_COMPA_vect) 
 {
-	static uint8_t sigANextRed = 0;
-	static uint8_t sigANextYellow = 0;
-	static uint8_t sigANextGreen = 0;
-
-	static uint8_t sigBNextRed = 0;
-	static uint8_t sigBNextYellow = 0;
-	static uint8_t sigBNextGreen = 0;
 	static uint8_t flasherCounter = 0;
 	static uint8_t flasher = 0;
 	static uint8_t pwmCounter = 0;
 	static uint8_t subMillisCounter = 0;
-	
+	static SignalState_t sigA = {ASPECT_OFF, ASPECT_OFF, 0, 0, 0, 0};
+	static SignalState_t sigB = {ASPECT_OFF, ASPECT_OFF, 0, 0, 0, 0};
+
+
 	// The ISR does two main things - updates the LED outputs since
 	//  PWM is done through software, and updates millis which is used
 	//  to trigger various events
 	// We need this to run at roughly 125 Hz * number of PWM levels.  If we assume 32, that makes a nice round 4kHz
 
 	// First, set all the PWMs so as to minimize jitter
-	if (sigANextRed > pwmCounter)
+	if (sigA.redPWM > pwmCounter)
 		PORTA &= ~_BV(PA0);
 	else
 		PORTA |= _BV(PA0);
 
-	if (sigANextYellow > pwmCounter)
+	if (sigA.yellowPWM > pwmCounter)
 		PORTA &= ~_BV(PA1);
 	else
 		PORTA |= _BV(PA1);
 
-	if (sigANextGreen > pwmCounter)
+	if (sigA.greenPWM > pwmCounter)
 		PORTB &= ~_BV(PB3);
 	else
 		PORTB |= _BV(PB3);
 
-	if (sigBNextRed > pwmCounter)
+	if (sigB.redPWM > pwmCounter)
 		PORTB &= ~_BV(PB4);
 	else
 		PORTB |= _BV(PB4);
 
-	if (sigBNextYellow > pwmCounter)
+	if (sigB.yellowPWM > pwmCounter)
 		PORTB &= ~_BV(PB5);
 	else
 		PORTB |= _BV(PB5);
 
-	if (sigBNextGreen > pwmCounter)
+	if (sigB.greenPWM > pwmCounter)
 		PORTB &= ~_BV(PB6);
 	else
 		PORTB |= _BV(PB6);
@@ -303,12 +538,11 @@ ISR(TIMER0_COMPA_vect)
 		millis++;
 	}
 
-	pwmCounter = (pwmCounter + 1) & 0x1F;
 	if (++pwmCounter >= 32)
 	{
 		pwmCounter = 0;
 		flasherCounter++;
-		if (flasherCounter > 187)
+		if (flasherCounter > 94)
 		{
 			flasher ^= 0x01;
 			flasherCounter = 0;
@@ -324,10 +558,8 @@ ISR(TIMER0_COMPA_vect)
 		//   12 frames to target color
 		//   25 frames back to red
 		//   15 frames back to target color
-
-		isr_AspectToOutputs(aspectSignalA, &sigANextRed, &sigANextYellow, &sigANextGreen, flasher);
-		isr_AspectToOutputs(aspectSignalB, &sigBNextRed, &sigBNextYellow, &sigBNextGreen, flasher);
-
+		isr_AspectToOutputs(aspectSignalA, &sigA, flasher, globalOptions);
+		isr_AspectToOutputs(aspectSignalB, &sigB, flasher, globalOptions);
 	}
 }
 
@@ -343,7 +575,7 @@ void initializeTimer()
 
 #define OPTION_A_APPROACH_LIGHTING   0x04
 #define OPTION_B_FOUR_ASPECT         0x02
-#define OPTION_C_RESERVED            0x01
+#define OPTION_C_SEARCHLIGHT_MODE    0x01
 
 void readOptions(DebounceState8_t* optionsDebouncer)
 {
@@ -432,10 +664,15 @@ int main(void)
 			if (getDebouncedState(&optionsDebouncer) & OPTION_B_FOUR_ASPECT)
 				options |= MSS_ASPECT_OPTION_FOUR_INDICATION;
 
-//			options = MSS_ASPECT_OPTION_FOUR_INDICATION | MSS_ASPECT_OPTION_APPRCH_LIGHTING;
+			if (getDebouncedState(&optionsDebouncer) & OPTION_C_SEARCHLIGHT_MODE)
+				options |= MSS_ASPECT_OPTION_SEARCHLIGHT;
 
-			mssIndicationToSingleHeadAspect(mssPortA.indication, &aspectSignalB, options, mssPortApproach(&mssPortB));
-			mssIndicationToSingleHeadAspect(mssPortB.indication, &aspectSignalA, options, mssPortApproach(&mssPortA));
+//			options = MSS_ASPECT_OPTION_FOUR_INDICATION | MSS_ASPECT_OPTION_SEARCHLIGHT;// | MSS_ASPECT_OPTION_APPRCH_LIGHTING;
+
+			globalOptions = options;  // Make this atomic;
+
+			mssIndicationToSingleHeadAspect(mssPortA.indication, &aspectSignalB, globalOptions, mssPortApproach(&mssPortB));
+			mssIndicationToSingleHeadAspect(mssPortB.indication, &aspectSignalA, globalOptions, mssPortApproach(&mssPortA));
 		}
 
 	}
