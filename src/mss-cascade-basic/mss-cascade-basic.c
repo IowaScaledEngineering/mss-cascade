@@ -38,6 +38,9 @@ LICENSE:
 //  Indication - The "meaning" to be conveyed to a train viewing the signal
 //  Aspect     - The appearance of the signal - color, flashing, etc.
 
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX(a,b) ((a)>(b)?(a):(b))
+
 uint8_t globalOptions = 0;
 
 volatile uint32_t millis = 0;
@@ -431,23 +434,23 @@ void isr_AspectToOutputs(MSSSignalAspect_t signalAspect, SignalState_t* sig, uin
 			}
 			
 			if (targetPWMRed > sig->redPWM)
-				sig->redPWM++;
+				sig->redPWM = MIN(sig->redPWM + 2, 0x1F);
 			else if (targetPWMRed < sig->redPWM )
-				sig->redPWM--;
+				sig->redPWM -= MIN(2, sig->redPWM);
 			else
 				finalState += 1;
 
 			if (targetPWMYellow > sig->yellowPWM)
-				sig->yellowPWM++;
+				sig->yellowPWM = MIN(sig->yellowPWM + 2, 0x1F);
 			else if (targetPWMYellow < sig->yellowPWM)
-				sig->yellowPWM--;
+				sig->yellowPWM -= MIN(2, sig->yellowPWM);
 			else
 				finalState += 1;
 
 			if (targetPWMGreen > sig->greenPWM)
-				sig->greenPWM++;
+				sig->greenPWM = MIN(sig->greenPWM + 2, 0x1F);
 			else if (targetPWMGreen < sig->greenPWM)
-				sig->greenPWM--;
+				sig->greenPWM -= MIN(2, sig->greenPWM);
 			else
 				finalState += 1;
 
