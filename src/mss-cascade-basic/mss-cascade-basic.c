@@ -32,6 +32,7 @@ LICENSE:
 #include <stdbool.h>
 #include <stdint.h>
 #include "debouncer.h"
+#include "searchlight-pwm.h"
 
 //  Definitions:
 //  Physical   - The state of the MSS wires
@@ -40,6 +41,10 @@ LICENSE:
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
+
+#define MSS_ASPECT_OPTION_APPRCH_LIGHTING   0x01
+#define MSS_ASPECT_OPTION_FOUR_INDICATION   0x02
+#define MSS_ASPECT_OPTION_SEARCHLIGHT       0x04
 
 uint8_t globalOptions = 0;
 
@@ -164,10 +169,6 @@ void mssReadPort(MSSPort_t* port, const MSSPortPins_t* const pins)
 	}
 }
 
-#define MSS_ASPECT_OPTION_APPRCH_LIGHTING   0x01
-#define MSS_ASPECT_OPTION_FOUR_INDICATION   0x02
-#define MSS_ASPECT_OPTION_SEARCHLIGHT       0x04
-
 void mssIndicationToSingleHeadAspect(MSSPortIndication_t indication, MSSSignalAspect_t* aspect, uint8_t options, bool approachActive)
 {
 	// If we're approach lit and there's nothing on approach, turn off
@@ -224,56 +225,6 @@ bool isYellowToGreen(MSSSignalAspect_t startAspect, MSSSignalAspect_t endAspect)
 		return true;
 	return false;
 }
-
-const uint16_t const searchlightPWMsThroughRed[32] PROGMEM = { 
-	27648,
-	17408,
-	12288,
-	0,
-	17,
-	25,
-	25,
-	17,
-	0,
-	384,
-	544,
-	551,
-	544,
-	544,
-	704,
-	704,
-	544,
-	544,
-	544,
-	551,
-	544,
-	384,
-	236,
-	17,
-	22,
-	17,
-	236,
-	384,
-	544,
-	704,
-	864,
-	992}; 
-
-
-const uint16_t const searchlightPWMsInvolvingRed[] PROGMEM = { 
-	31744,
-	27648,
-	22528,
-	17408,
-	12288,
-	5120,
-	0,
-	160,
-	384,
-	544,
-	704,
-	864,
-	992 }; 
 
 void isr_AspectToOutputs(MSSSignalAspect_t signalAspect, SignalState_t* sig, uint8_t flasher, uint8_t options)
 {
@@ -670,7 +621,7 @@ int main(void)
 			if (getDebouncedState(&optionsDebouncer) & OPTION_C_SEARCHLIGHT_MODE)
 				options |= MSS_ASPECT_OPTION_SEARCHLIGHT;
 
-//			options = MSS_ASPECT_OPTION_FOUR_INDICATION | MSS_ASPECT_OPTION_SEARCHLIGHT;// | MSS_ASPECT_OPTION_APPRCH_LIGHTING;
+			options = MSS_ASPECT_OPTION_FOUR_INDICATION | MSS_ASPECT_OPTION_SEARCHLIGHT;// | MSS_ASPECT_OPTION_APPRCH_LIGHTING;
 
 			globalOptions = options;  // Make this atomic;
 
