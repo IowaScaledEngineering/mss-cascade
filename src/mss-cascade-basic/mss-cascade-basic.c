@@ -203,19 +203,23 @@ int main(void)
 
 			readOptions(&optionsDebouncer);
 			optionJumpers = getDebouncedState(&optionsDebouncer);
-			optionJumpers = OPTION_B_FOUR_ASPECT | OPTION_COMMON_ANODE | OPTION_C_SEARCHLIGHT_MODE;
+//			optionJumpers |= OPTION_B_FOUR_ASPECT;// | OPTION_COMMON_ANODE | OPTION_C_SEARCHLIGHT_MODE;
 
 			// Convert global option bits to signal head option bits
 			if (optionJumpers & OPTION_C_SEARCHLIGHT_MODE)
 				signalHeadOptions |= SIGNAL_OPTION_SEARCHLIGHT;
+			else 
+				signalHeadOptions &= ~SIGNAL_OPTION_SEARCHLIGHT;
 
 			if (optionJumpers & OPTION_COMMON_ANODE)
 				signalHeadOptions |= SIGNAL_OPTION_COMMON_ANODE;
+			else 
+				signalHeadOptions &= ~SIGNAL_OPTION_COMMON_ANODE;
 
 			// Convert global option bits to MSS option bits
 			if (optionJumpers & OPTION_A_APPROACH_LIGHTING)
 				mssOptions |= MSS_ASPECT_OPTION_APPRCH_LIGHTING;
-				
+
 			if (optionJumpers & OPTION_B_FOUR_ASPECT)
 				mssOptions |= MSS_ASPECT_OPTION_FOUR_INDICATION;
 

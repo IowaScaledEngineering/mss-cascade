@@ -45,11 +45,11 @@ uint8_t optionsADCValueToBits(uint8_t adcVal)
 	}
 	else if(adcVal > 149)
 	{
-		return 0x02;
+		return 0x01;
 	}
 	else if(adcVal > 115)
 	{
-		return 0x01;
+		return 0x02;
 	}
 
 	return 0x03;
