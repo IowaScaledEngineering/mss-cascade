@@ -35,6 +35,9 @@ LICENSE:
 #include "signalHead.h"
 #include "mss.h"
 
+#define LOOP_UPDATE_TIME_MS       50
+#define STARTUP_LOCKOUT_TIME_MS  500
+
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
@@ -136,7 +139,9 @@ int main(void)
 	DebounceState8_t optionsDebouncer;
 	uint32_t lastReadTime = 0;
 	uint32_t currentTime = 0;
-
+	uint8_t initialLockout = (STARTUP_LOCKOUT_TIME_MS)/(LOOP_UPDATE_TIME_MS);
+	uint8_t optionJumpers = 0;
+	
 	// Deal with watchdog first thing
 	MCUSR = 0;              // Clear reset status
 	wdt_reset();            // Reset the WDT, just in case it's still enabled over reset
@@ -174,11 +179,20 @@ int main(void)
 	signalHeadInitialize(&signalA);
 	signalHeadInitialize(&signalB);
 
-	signalHeadAspectSet(&signalA, ASPECT_RED);
-	signalHeadAspectSet(&signalB, ASPECT_RED);
+	signalHeadAspectSet(&signalA, ASPECT_OFF);
+	signalHeadAspectSet(&signalB, ASPECT_OFF);
 	
 	mssPortInitialize(&mssPortA);
 	mssPortInitialize(&mssPortB);
+
+	// Need to set common anode or common cathode
+	// as quickly as possible to prevent an initialization flash
+	// initializeOptions() has already gotten the initial state of the CA/CC line
+	optionJumpers = getDebouncedState(&optionsDebouncer);
+	if (optionJumpers & OPTION_COMMON_ANODE)
+		signalHeadOptions |= SIGNAL_OPTION_COMMON_ANODE;
+	else 
+		signalHeadOptions &= ~SIGNAL_OPTION_COMMON_ANODE;
 
 	sei();
 	wdt_reset();
@@ -193,9 +207,8 @@ int main(void)
 		// Because debouncing and such is built into option reading and the MSS library, only 
 		//  run the updates every 10mS or so.
 
-		if (((uint32_t)currentTime - lastReadTime) > 10)
+		if (((uint32_t)currentTime - lastReadTime) > LOOP_UPDATE_TIME_MS)
 		{
-			uint8_t optionJumpers = 0;
 			uint8_t mssOptions = 0;
 			
 			SignalAspect_t aspect;
@@ -227,6 +240,15 @@ int main(void)
 			// Read state of MSS bus ports coming in
 			mssReadPort(&mssPortA, MSS_PORT_A_DEF);
 			mssReadPort(&mssPortB, MSS_PORT_B_DEF);
+
+
+			// The purpose of the initialLockout is to give the MSS lines and debouncers time to stabilize before we bring the signals up
+			// It just looks cleaner to the user than the signals bouncing all over the place as the lines settle.
+			if (0 != initialLockout)
+			{
+				initialLockout--;
+				continue;
+			}
 
 			mssIndicationToSingleHeadAspect(mssPortA.indication, &aspect, mssOptions, mssPortApproach(&mssPortB));
 			signalHeadAspectSet(&signalB, aspect);
