@@ -5669,7 +5669,7 @@
   (symbol (lib_id "Device:R_US") (at 258.445 138.43 90) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 44d42cfd-1473-4354-a700-d5c11b16e27c)
-    (property "Reference" "R?" (id 0) (at 260.35 135.89 90))
+    (property "Reference" "R1" (id 0) (at 260.35 135.89 90))
     (property "Value" "10k" (id 1) (at 256.54 135.89 90))
     (property "Footprint" "Resistor_SMD:R_0805_2012Metric" (id 2) (at 258.699 137.414 90)
       (effects (font (size 1.27 1.27)) hide)
@@ -5977,7 +5977,7 @@
   (symbol (lib_id "power:+5V") (at 31.115 59.055 0) (unit 1)
     (in_bom yes) (on_board yes) (fields_autoplaced)
     (uuid 5ccd9c99-28ad-41c9-8e0f-8705affab77d)
-    (property "Reference" "#PWR?" (id 0) (at 31.115 62.865 0)
+    (property "Reference" "#PWR0106" (id 0) (at 31.115 62.865 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+5V" (id 1) (at 31.115 53.34 0))
@@ -6465,7 +6465,7 @@
   (symbol (lib_id "power:+12V") (at 285.115 127.635 0) (mirror y) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 88d00145-d61e-4f9b-9262-3c2cfdd5b878)
-    (property "Reference" "#PWR?" (id 0) (at 285.115 131.445 0)
+    (property "Reference" "#PWR0102" (id 0) (at 285.115 131.445 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+12V" (id 1) (at 285.115 123.825 0))
@@ -6592,7 +6592,7 @@
   (symbol (lib_id "power:GND") (at 144.145 250.19 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 9b79d4c0-d920-4c8f-8d9c-aed433ce5d68)
-    (property "Reference" "#PWR?" (id 0) (at 144.145 256.54 0)
+    (property "Reference" "#PWR0105" (id 0) (at 144.145 256.54 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (id 1) (at 144.145 254 0))
@@ -6986,7 +6986,7 @@
   (symbol (lib_id "power:GND") (at 74.93 33.02 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid b0088712-f6dc-4769-af51-21d22f19bfe2)
-    (property "Reference" "#PWR?" (id 0) (at 74.93 39.37 0)
+    (property "Reference" "#PWR0107" (id 0) (at 74.93 39.37 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (id 1) (at 74.93 36.83 0))
@@ -7064,7 +7064,7 @@
   (symbol (lib_id "power:GND") (at 324.485 150.495 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid b2082e18-dbb8-44e5-8f0d-a91bab4668da)
-    (property "Reference" "#PWR?" (id 0) (at 324.485 156.845 0)
+    (property "Reference" "#PWR0101" (id 0) (at 324.485 156.845 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (id 1) (at 324.485 154.94 0))
@@ -7080,7 +7080,7 @@
   (symbol (lib_id "Switch:SW_DIP_x08") (at 151.765 234.95 180) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid ba2acef0-547c-4ec8-b17d-2cea016e647d)
-    (property "Reference" "SW?" (id 0) (at 151.765 221.615 0))
+    (property "Reference" "SW3" (id 0) (at 151.765 221.615 0))
     (property "Value" "SW_DIP_x08" (id 1) (at 151.765 223.52 0))
     (property "Footprint" "Button_Switch_SMD:SW_DIP_SPSTx08_Slide_6.7x21.88mm_W8.61mm_P2.54mm_LowProfile" (id 2) (at 151.765 234.95 0)
       (effects (font (size 1.27 1.27)) hide)
@@ -7198,7 +7198,7 @@
   (symbol (lib_id "power:GND") (at 116.84 247.015 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid bd9c16ed-ef8d-4f91-93ed-dd683129e000)
-    (property "Reference" "#PWR?" (id 0) (at 116.84 253.365 0)
+    (property "Reference" "#PWR0104" (id 0) (at 116.84 253.365 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (id 1) (at 116.84 250.825 0))
@@ -8187,26 +8187,26 @@
     (path "/2652e6f1-d85a-4c3f-981c-1016c3d2750a"
       (reference "#PWR052") (unit 1) (value "GND") (footprint "")
     )
+    (path "/b2082e18-dbb8-44e5-8f0d-a91bab4668da"
+      (reference "#PWR0101") (unit 1) (value "GND") (footprint "")
+    )
+    (path "/88d00145-d61e-4f9b-9262-3c2cfdd5b878"
+      (reference "#PWR0102") (unit 1) (value "+12V") (footprint "")
+    )
     (path "/d3f56b2e-499a-4942-8ff9-230574ce708e"
       (reference "#PWR0103") (unit 1) (value "GND") (footprint "")
     )
-    (path "/5ccd9c99-28ad-41c9-8e0f-8705affab77d"
-      (reference "#PWR?") (unit 1) (value "+5V") (footprint "")
-    )
-    (path "/88d00145-d61e-4f9b-9262-3c2cfdd5b878"
-      (reference "#PWR?") (unit 1) (value "+12V") (footprint "")
+    (path "/bd9c16ed-ef8d-4f91-93ed-dd683129e000"
+      (reference "#PWR0104") (unit 1) (value "GND") (footprint "")
     )
     (path "/9b79d4c0-d920-4c8f-8d9c-aed433ce5d68"
-      (reference "#PWR?") (unit 1) (value "GND") (footprint "")
+      (reference "#PWR0105") (unit 1) (value "GND") (footprint "")
+    )
+    (path "/5ccd9c99-28ad-41c9-8e0f-8705affab77d"
+      (reference "#PWR0106") (unit 1) (value "+5V") (footprint "")
     )
     (path "/b0088712-f6dc-4769-af51-21d22f19bfe2"
-      (reference "#PWR?") (unit 1) (value "GND") (footprint "")
-    )
-    (path "/b2082e18-dbb8-44e5-8f0d-a91bab4668da"
-      (reference "#PWR?") (unit 1) (value "GND") (footprint "")
-    )
-    (path "/bd9c16ed-ef8d-4f91-93ed-dd683129e000"
-      (reference "#PWR?") (unit 1) (value "GND") (footprint "")
+      (reference "#PWR0107") (unit 1) (value "GND") (footprint "")
     )
     (path "/f7afeb96-08a7-44d0-9778-892656948ff0"
       (reference "C1") (unit 1) (value "68uF") (footprint "Capacitor_SMD:CP_Elec_6.3x5.8")
@@ -8385,6 +8385,9 @@
     (path "/1d1dcbdd-9d00-47cf-8c81-961826a4a57a"
       (reference "L2") (unit 1) (value "4.7uH") (footprint "ISE_UltraLibrarian:MSS6132-xxxMLC")
     )
+    (path "/44d42cfd-1473-4354-a700-d5c11b16e27c"
+      (reference "R1") (unit 1) (value "10k") (footprint "Resistor_SMD:R_0805_2012Metric")
+    )
     (path "/eb833c4d-054d-4f37-92c2-564f5eea5e87"
       (reference "R3") (unit 1) (value "330") (footprint "Resistor_SMD:R_0805_2012Metric")
     )
@@ -8499,9 +8502,6 @@
     (path "/eaf07940-59df-4a54-85cb-117572f0b9aa"
       (reference "R40") (unit 1) (value "10k") (footprint "Resistor_SMD:R_0805_2012Metric")
     )
-    (path "/44d42cfd-1473-4354-a700-d5c11b16e27c"
-      (reference "R?") (unit 1) (value "10k") (footprint "Resistor_SMD:R_0805_2012Metric")
-    )
     (path "/a456ff59-9866-4634-a18c-c4c411e7d7e9"
       (reference "SW1") (unit 1) (value "JS202011SCQN") (footprint "ISE_UltraLibrarian:SW_JS202011SCQN")
     )
@@ -8509,7 +8509,7 @@
       (reference "SW2") (unit 1) (value "JS202011SCQN") (footprint "ISE_UltraLibrarian:SW_JS202011SCQN")
     )
     (path "/ba2acef0-547c-4ec8-b17d-2cea016e647d"
-      (reference "SW?") (unit 1) (value "SW_DIP_x08") (footprint "Button_Switch_SMD:SW_DIP_SPSTx08_Slide_6.7x21.88mm_W8.61mm_P2.54mm_LowProfile")
+      (reference "SW3") (unit 1) (value "SW_DIP_x08") (footprint "Button_Switch_SMD:SW_DIP_SPSTx08_Slide_6.7x21.88mm_W8.61mm_P2.54mm_LowProfile")
     )
     (path "/c88d7df6-3504-4ee5-8948-e01ccd277842"
       (reference "TP1") (unit 1) (value "TestPoint") (footprint "TestPoint:TestPoint_Pad_D2.0mm")
