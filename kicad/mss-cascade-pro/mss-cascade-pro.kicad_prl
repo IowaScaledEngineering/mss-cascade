@@ -62,11 +62,11 @@
       35,
       36
     ],
-    "visible_layers": "ffcfcff_ffffffff",
+    "visible_layers": "ffcf4ff_ffffffff",
     "zone_display_mode": 0
   },
   "meta": {
-    "filename": "mss-siding.kicad_prl",
+    "filename": "mss-cascade-pro.kicad_prl",
     "version": 3
   },
   "project": {
