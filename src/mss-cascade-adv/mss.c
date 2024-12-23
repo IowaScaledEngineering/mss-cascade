@@ -43,6 +43,27 @@ bool mssPortApproach(MSSPort_t* port)
 	return false;
 }
 
+MSSPortIndication_t mssPortWiresToIndication(bool S, bool A, bool AA, bool AD)
+{
+	MSSPortIndication_t indication = INDICATION_STOP;
+	
+	if (S)
+		indication = INDICATION_STOP;
+	else if (A && !AD)
+		indication = INDICATION_APPROACH;
+	else if (AD && !A && AA)
+		indication = INDICATION_APPROACH_DIVERGING_AA;
+	else if (AD)
+		indication = INDICATION_APPROACH_DIVERGING;
+	else if (AA)
+		indication = INDICATION_ADVANCE_APPROACH;
+	else
+		indication = INDICATION_CLEAR;
+		
+	return indication;
+}
+
+
 void mssReadPort(MSSPort_t* port, volatile uint8_t* adjacentPort, uint8_t adjacentMask,
 	volatile uint8_t* approachPort, uint8_t approachMask,
 	volatile uint8_t* advApproachPort, uint8_t advApproachMask,
@@ -66,26 +87,11 @@ void mssReadPort(MSSPort_t* port, volatile uint8_t* adjacentPort, uint8_t adjace
 
 	mssInputState = getDebouncedState(&(port->debounce));
 	
-	if (mssInputState & MSS_MASK_ADJACENT)
-	{
-		port->indication = INDICATION_STOP;
-	}
-	else if (mssInputState & MSS_MASK_APPROACH)
-	{
-		if (mssInputState & MSS_MASK_DIV_APPROACH)
-			port->indication = INDICATION_APPROACH_DIVERGING;
-		else
-			port->indication = INDICATION_APPROACH;
-	}
-	else if (mssInputState & MSS_MASK_ADV_APPROACH)
-	{
-		port->indication = INDICATION_ADVANCE_APPROACH;
-	}
-	else
-	{
-		port->indication = INDICATION_CLEAR;
-	}
+	port->indication = mssPortWiresToIndication(mssInputState & MSS_MASK_ADJACENT, 
+			mssInputState & MSS_MASK_APPROACH, mssInputState & MSS_MASK_ADV_APPROACH, mssInputState & MSS_MASK_DIV_APPROACH);
 }
+
+
 
 void mssIndicationToSingleHeadAspect(MSSPortIndication_t indication, SignalAspect_t* aspect, uint8_t options, bool approachActive)
 {

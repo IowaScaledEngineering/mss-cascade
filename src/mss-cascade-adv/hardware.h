@@ -50,6 +50,8 @@ LICENSE:
 #define OPTION_MSS_V2                0x01
 #define CONF_SW3_IN                  0x02
 #define CONF_SW3_IN                  0x04
+
+#define OPTION_COMMON_ANODE          0x02
 #define OPTION_A_APPROACH_LIGHTING   0x08
 #define OPTION_B_FOUR_ASPECT         0x10
 #define OPTION_C_SEARCHLIGHT_MODE    0x20
@@ -92,7 +94,7 @@ LICENSE:
 #define CONF_LED_ASPECT_S            0x04
 #define CONF_LED_ASPECT_A            0x08
 #define CONF_LED_ASPECT_AA           0x10
-#define CONF_LED_ASPECT_AD+AA        0x20
+#define CONF_LED_ASPECT_AD_AA        0x20
 #define CONF_LED_ASPECT_AD           0x40
 #define CONF_LED_ASPECT_CLR          0x80
 
