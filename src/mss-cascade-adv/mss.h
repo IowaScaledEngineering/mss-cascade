@@ -49,7 +49,8 @@ typedef enum
 	INDICATION_ADVANCE_APPROACH      = 2,
 	INDICATION_APPROACH_DIVERGING_AA = 3,
 	INDICATION_APPROACH_DIVERGING    = 4,
-	INDICATION_CLEAR                 = 5
+	INDICATION_CLEAR                 = 5,
+	INDICATION_END
 } MSSPortIndication_t;
 
 typedef struct

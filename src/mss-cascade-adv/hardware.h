@@ -23,9 +23,16 @@ LICENSE:
 #ifndef _HARDWARE_H_
 #define _HARDWARE_H_
 
+#define SWITCH_UPDATE_TIME_MS     25
 #define LOOP_UPDATE_TIME_MS       50
 #define TURNOUT_LOCKOUT_TIME_MS  200
 #define STARTUP_LOCKOUT_TIME_MS  500
+
+#define EEPROM_SIGNAL_AU_BASE  ((uint8_t*)0x00)
+#define EEPROM_SIGNAL_AL_BASE  ((uint8_t*)0x08)
+#define EEPROM_SIGNAL_BU_BASE  ((uint8_t*)0x10)
+#define EEPROM_SIGNAL_BL_BASE  ((uint8_t*)0x18)
+
 
 #define TCA9555_ADDR_000  0x20
 #define TCA9555_ADDR_001  0x21
@@ -47,11 +54,12 @@ LICENSE:
 //  IO00 - Input  - MSS v2
 
 
-#define OPTION_MSS_V2                0x01
-#define CONF_SW3_IN                  0x02
-#define CONF_SW3_IN                  0x04
+#define SWITCH_SW3_IN                0x02
+#define SWITCH_SW4_IN                0x04
 
-#define OPTION_COMMON_ANODE          0x02
+
+#define OPTION_MSS_V2                0x01
+#define OPTION_COMMON_ANODE          0x02  // Reuse this bit in the options byte - normally SW3
 #define OPTION_A_APPROACH_LIGHTING   0x08
 #define OPTION_B_FOUR_ASPECT         0x10
 #define OPTION_C_SEARCHLIGHT_MODE    0x20
@@ -109,8 +117,8 @@ LICENSE:
 //  IO11 - Output - Conf Sig UH Amber
 //  IO10 - Output - Conf Sig UH Green
 
-#define CONF_SWITCH_LOWER     0x80
-#define CONF_SWITCH_UPPER     0x40
+#define SWITCH_SW6_IN         0x80
+#define SWITCH_SW5_IN         0x40
 #define CONF_LED_LOWER_RED    0x20
 #define CONF_LED_LOWER_YELLOW 0x10
 #define CONF_LED_LOWER_GREEN  0x08
@@ -118,7 +126,15 @@ LICENSE:
 #define CONF_LED_UPPER_YELLOW 0x02
 #define CONF_LED_UPPER_GREEN  0x01
 
+// Switch masks are actually used for all interaction
+//  with the switches, so we don't have to remember
+//  their hardware bit positions.  All gets normalized
+//  during reading
 
+#define SWITCHMASK_LEFT         0x01
+#define SWITCHMASK_RIGHT        0x02
+#define SWITCHMASK_UPPER_HEAD   0x04
+#define SWITCHMASK_LOWER_HEAD   0x08
 
 // Signal Port Connections
 // These are in the order of:
