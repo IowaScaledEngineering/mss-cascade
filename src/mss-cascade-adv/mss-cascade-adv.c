@@ -117,91 +117,7 @@ void initializeTimer()
 	TIMSK = _BV(OCIE0A);
 }
 
-bool getSwitches(uint8_t* retval)
-{
-	uint8_t i=0, j=0;
-	if (!readByte(TCA9555_ADDR_000, TCA9555_GPIN0, &i))
-		return false;
 
-	if (!readByte(TCA9555_ADDR_001, TCA9555_GPIN1, &j))
-		return false;
-
-	*retval = 0;
-	if (i & SWITCH_SW3_IN)
-		*retval |= SWITCHMASK_LEFT;
-
-	if (i & SWITCH_SW4_IN)
-		*retval |= SWITCHMASK_RIGHT;
-
-	if (j & SWITCH_SW5_IN)
-		*retval |= SWITCHMASK_UPPER_HEAD;
-
-	if (j & SWITCH_SW6_IN)
-		*retval |= SWITCHMASK_LOWER_HEAD;
-
-	return true;
-}
-
-bool getOptions(uint8_t* retval)
-{
-	uint8_t i=0;
-	if (!readByte(TCA9555_ADDR_000, TCA9555_GPIN0, &i))
-		return false;
-		
-		
-	// Invert the option switches - they're all active low normally and pulled up if open
-	i ^= (OPTION_A_APPROACH_LIGHTING | OPTION_B_FOUR_ASPECT | OPTION_C_SEARCHLIGHT_MODE | OPTION_D_RESERVED | OPTION_E_RESERVED);
-
-	i &= ~(SWITCH_SW3_IN | SWITCH_SW4_IN); // These are SW_A and SW_B.  We're going to reuse their bits for other stuff.
-	i |= ((PINA & 0x02)?OPTION_COMMON_ANODE:0);
-
-	*retval = i;
-	return true;
-}
-
-bool getMSS(uint8_t* retval, bool mss_v2)
-{
-	uint8_t i = 0;
-
-	if (!readByte(TCA9555_ADDR_000, TCA9555_GPIN1, &i))
-		return false;
-
-	// If we're set for MSS v2, the approach diverging lines are active low (after inversion)
-	//  so we need to re-invert them here so that if the bit is on, the line is active
-	if (mss_v2)
-		i ^= (MSS_B_AD_IN | MSS_A_AD_IN);
-
-	*retval = i;
-	return true;
-}
-
-void lampTest()
-{
-	uint8_t mask = 0x01;
-	uint8_t i = 0;
-	for(i=0; i<6; i++)
-	{
-		writeByte(TCA9555_ADDR_001, TCA9555_GPOUT1, mask);
-
-		mask <<= 1;
-		wdt_reset();
-		_delay_ms(100);
-	}
-
-	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT1, 0);
-	mask = 0x01;
-
-	for(i=0; i<8; i++)
-	{
-		writeByte(TCA9555_ADDR_001, TCA9555_GPOUT0, mask);
-		mask <<= 1;
-		wdt_reset();
-		_delay_ms(100);
-	}
-	
-	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT0, 0);
-	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT1, 0);
-}
 
 bool testSignalEEPROMValid()
 {
@@ -447,7 +363,7 @@ int main(void)
 	//  go get the initial values for options and MSS.  This should avoid
 	//  most of the initial bouncing around as the module starts up.
 
-	initValue = OPTION_COMMON_ANODE | OPTION_B_FOUR_ASPECT; // Default is common anode, four aspect
+	initValue = OPTION_COMMON_ANODE; // Default is common anode, four aspect
 
 	if (getOptions(&i))
 		initValue = i;
@@ -504,16 +420,19 @@ int main(void)
 			if (getSwitches(&i))
 				switchesPressed = debounce8(i, &switchDebouncer);
 
-			if (CONFIG_OFF == cState && getDebouncedState(&optionsDebouncer) & OPTION_E_RESERVED)
+			if (CONFIG_OFF == cState && getDebouncedState(&optionsDebouncer) & OPTION_E_CONFIG_MODE)
 			{
+				// If Option E (set configuration) is turned on while holding down the left and right buttons
+				//  do a complete configuratio rewrite back to factory
 				if ((0x0F & (~getDebouncedState(&switchDebouncer))) == (SWITCHMASK_LEFT | SWITCHMASK_RIGHT))
 					initializeSignalEEPROM();
 				cState = CONFIG_START;
 			}
 			
-			if (CONFIG_OFF != cState && !(getDebouncedState(&optionsDebouncer) & OPTION_E_RESERVED))
+			if (CONFIG_OFF != cState && !(getDebouncedState(&optionsDebouncer) & OPTION_E_CONFIG_MODE))
 				cState = CONFIG_SHUTDOWN;
 
+			// Turn on mock signal and configuration lights if in configuration mode
 			if (CONFIG_OFF != cState)
 				showConfigState(signal, ind, upperMockAspect, lowerMockAspect, flasher);
 
@@ -597,9 +516,6 @@ int main(void)
 
 			// Read state of option jumpers
 			optionJumpers = getDebouncedState(&optionsDebouncer);
-
-			// If you want to fake the optionJumper settings for testing, do it here
-			// optionJumpers |= OPTION_B_FOUR_ASPECT | OPTION_C_SEARCHLIGHT_MODE | OPTION_D_LIMIT_DIVERGING | OPTION_A_APPROACH_LIGHTING;
 
 			// Convert global option bits to signal head option bits
 			if (optionJumpers & OPTION_C_SEARCHLIGHT_MODE)

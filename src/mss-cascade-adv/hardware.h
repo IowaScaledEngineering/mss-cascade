@@ -61,10 +61,10 @@ LICENSE:
 #define OPTION_MSS_V2                0x01
 #define OPTION_COMMON_ANODE          0x02  // Reuse this bit in the options byte - normally SW3
 #define OPTION_A_APPROACH_LIGHTING   0x08
-#define OPTION_B_FOUR_ASPECT         0x10
+#define OPTION_B_RESERVED            0x10
 #define OPTION_C_SEARCHLIGHT_MODE    0x20
 #define OPTION_D_RESERVED            0x40
-#define OPTION_E_RESERVED            0x80
+#define OPTION_E_CONFIG_MODE         0x80
 
 
 // TCA9555 0x20 - GPIO 1
@@ -146,6 +146,11 @@ LICENSE:
 #define SIGNAL_HEAD_AL_DEF   &PORTA, _BV(PA4), &PORTA, _BV(PA3), &PORTB, _BV(PB0)
 #define SIGNAL_HEAD_BU_DEF   &PORTB, _BV(PB6), &PORTB, _BV(PB5), &PORTB, _BV(PB4)
 #define SIGNAL_HEAD_BL_DEF   &PORTB, _BV(PB3), &PORTB, _BV(PB2), &PORTB, _BV(PB1)
+
+bool getSwitches(uint8_t* retval);
+bool getOptions(uint8_t* retval);
+bool getMSS(uint8_t* retval, bool mss_v2);
+void lampTest();
 
 
 #endif

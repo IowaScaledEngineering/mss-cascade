@@ -51,7 +51,7 @@ MSSPortIndication_t mssPortWiresToIndication(bool S, bool A, bool AA, bool AD)
 		indication = INDICATION_STOP;
 	else if (A && !AD)
 		indication = INDICATION_APPROACH;
-	else if (AD && !A && AA)
+	else if (AD && AA)
 		indication = INDICATION_APPROACH_DIVERGING_AA;
 	else if (AD)
 		indication = INDICATION_APPROACH_DIVERGING;

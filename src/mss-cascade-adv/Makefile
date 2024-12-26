@@ -38,7 +38,7 @@ PROGRAMMER_TYPE=iseavrprog
 PROGRAMMER_PORT=usb
 
 DEFINES = 
-SRCS = $(BASE_NAME).c debouncer.c signalHead.c mss.c i2c.c
+SRCS = $(BASE_NAME).c debouncer.c signalHead.c mss.c i2c.c hardware.c
 INCS = debouncer.h signalHead.h signalHeadPWM.h mss.h i2c.h hardware.h
 
 AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B2 -F
