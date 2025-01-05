@@ -25,7 +25,7 @@ LICENSE:
 #include <avr/wdt.h>
 #include <util/delay.h>
 #include <util/atomic.h>
-
+#include <avr/eeprom.h>
 #include <avr/sleep.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -58,10 +58,11 @@ uint32_t getMillis()
 	return retmillis;
 }
 
+static uint8_t flasher = 0;
+
 ISR(TIMER0_COMPA_vect) 
 {
 	static uint8_t flasherCounter = 0;
-	static uint8_t flasher = 0;
 	static uint8_t pwmPhase = 0;
 	static uint8_t subMillisCounter = 0;
 	
@@ -116,14 +117,191 @@ void initializeTimer()
 	TIMSK = _BV(OCIE0A);
 }
 
+
+
+bool testSignalEEPROMValid()
+{
+	for (uint8_t* head=EEPROM_SIGNAL_AU_BASE; head<=EEPROM_SIGNAL_BL_BASE; head += 0x08)
+	{
+		for (uint8_t ind=INDICATION_STOP; ind<=INDICATION_CLEAR; ind++)
+		{
+			if (eeprom_read_byte(head + ind) >= ASPECT_END)
+				return false;
+		}
+	}
+	return true;
+
+}
+
+void initializeSignalEEPROM()
+{
+	eeprom_write_byte(EEPROM_SIGNAL_AU_BASE + INDICATION_STOP,                  ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_AU_BASE + INDICATION_APPROACH,              ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_AU_BASE + INDICATION_ADVANCE_APPROACH,      ASPECT_FL_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_AU_BASE + INDICATION_APPROACH_DIVERGING_AA, ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_AU_BASE + INDICATION_APPROACH_DIVERGING,    ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_AU_BASE + INDICATION_CLEAR,                 ASPECT_GREEN);
+
+	eeprom_write_byte(EEPROM_SIGNAL_AL_BASE + INDICATION_STOP,                  ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_AL_BASE + INDICATION_APPROACH,              ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_AL_BASE + INDICATION_ADVANCE_APPROACH,      ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_AL_BASE + INDICATION_APPROACH_DIVERGING_AA, ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_AL_BASE + INDICATION_APPROACH_DIVERGING,    ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_AL_BASE + INDICATION_CLEAR,                 ASPECT_RED);
+
+	eeprom_write_byte(EEPROM_SIGNAL_BU_BASE + INDICATION_STOP,                  ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_BU_BASE + INDICATION_APPROACH,              ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_BU_BASE + INDICATION_ADVANCE_APPROACH,      ASPECT_FL_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_BU_BASE + INDICATION_APPROACH_DIVERGING_AA, ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_BU_BASE + INDICATION_APPROACH_DIVERGING,    ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_BU_BASE + INDICATION_CLEAR,                 ASPECT_GREEN);
+
+	eeprom_write_byte(EEPROM_SIGNAL_BL_BASE + INDICATION_STOP,                  ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_BL_BASE + INDICATION_APPROACH,              ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_BL_BASE + INDICATION_ADVANCE_APPROACH,      ASPECT_RED);
+	eeprom_write_byte(EEPROM_SIGNAL_BL_BASE + INDICATION_APPROACH_DIVERGING_AA, ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_BL_BASE + INDICATION_APPROACH_DIVERGING,    ASPECT_YELLOW);
+	eeprom_write_byte(EEPROM_SIGNAL_BL_BASE + INDICATION_CLEAR,                 ASPECT_RED);
+}
+
+typedef enum 
+{
+	CONFIG_OFF                  = 0,
+	CONFIG_START                = 1,
+	CONFIG_SHUTDOWN             = 2,
+	CONFIG_RUN                  = 3,
+	CONFIG_END
+} ConfigState_t;
+
+#define SIGNAL_A  0x00
+#define SIGNAL_B  0x01
+
+
+void showConfigState(uint8_t signal, MSSPortIndication_t ind, SignalAspect_t upper, SignalAspect_t lower, bool flasher)
+{
+	uint8_t configLEDOutput = 0;
+	uint8_t mockSignalLEDOutput = 0;
+	
+	if (SIGNAL_A == signal)
+		configLEDOutput = CONF_LED_SIGNAL_A;
+	else if (SIGNAL_B == signal)
+		configLEDOutput = CONF_LED_SIGNAL_B;
+	
+	switch(ind)
+	{
+		case INDICATION_STOP:
+			configLEDOutput |= CONF_LED_ASPECT_S;
+			break;
+
+		case INDICATION_APPROACH:
+			configLEDOutput |= CONF_LED_ASPECT_A;
+			break;
+
+		case INDICATION_ADVANCE_APPROACH:
+			configLEDOutput |= CONF_LED_ASPECT_AA;
+			break;
+			
+		case INDICATION_APPROACH_DIVERGING_AA:
+			configLEDOutput |= CONF_LED_ASPECT_AD_AA;
+			break;
+
+		case INDICATION_APPROACH_DIVERGING:
+			configLEDOutput |= CONF_LED_ASPECT_AD;
+			break;
+
+		case INDICATION_CLEAR:
+			configLEDOutput |= CONF_LED_ASPECT_CLR;
+			break;
+			
+		default:
+			break;
+	}
+
+	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT0, configLEDOutput);
+
+	switch(upper)
+	{
+		case ASPECT_RED:
+			mockSignalLEDOutput |= CONF_LED_UPPER_RED;
+			break;
+			
+		case ASPECT_YELLOW:	
+			mockSignalLEDOutput |= CONF_LED_UPPER_YELLOW;		
+			break;		
+
+		case ASPECT_GREEN:	
+			mockSignalLEDOutput |= CONF_LED_UPPER_GREEN;		
+			break;		
+
+		case ASPECT_FL_RED:
+			if (flasher)
+				mockSignalLEDOutput |= CONF_LED_UPPER_RED;
+			break;
+			
+		case ASPECT_FL_YELLOW:	
+			if (flasher)
+				mockSignalLEDOutput |= CONF_LED_UPPER_YELLOW;		
+			break;		
+
+		case ASPECT_FL_GREEN:	
+			if (flasher)
+				mockSignalLEDOutput |= CONF_LED_UPPER_GREEN;		
+			break;		
+
+		case ASPECT_OFF:
+		default:
+			break;
+	}
+
+	switch(lower)
+	{
+		case ASPECT_RED:
+			mockSignalLEDOutput |= CONF_LED_LOWER_RED;
+			break;
+			
+		case ASPECT_YELLOW:	
+			mockSignalLEDOutput |= CONF_LED_LOWER_YELLOW;		
+			break;		
+
+		case ASPECT_GREEN:	
+			mockSignalLEDOutput |= CONF_LED_LOWER_GREEN;		
+			break;		
+
+		case ASPECT_FL_RED:
+			if (flasher)
+				mockSignalLEDOutput |= CONF_LED_LOWER_RED;
+			break;
+			
+		case ASPECT_FL_YELLOW:	
+			if (flasher)
+				mockSignalLEDOutput |= CONF_LED_LOWER_YELLOW;		
+			break;		
+
+		case ASPECT_FL_GREEN:	
+			if (flasher)
+				mockSignalLEDOutput |= CONF_LED_LOWER_GREEN;		
+			break;		
+
+		case ASPECT_OFF:
+		default:
+			break;
+	}
+	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT1, mockSignalLEDOutput);
+
+}
+
+
+
 int main(void)
 {
 	DebounceState8_t optionsDebouncer;
 	DebounceState8_t mssDebouncer;
+	DebounceState8_t switchDebouncer;  // Used for the pushbuttons
+	
 	uint32_t lastReadTime = 0xf0000000;
+	uint32_t lastSwitchTime = 0xf0000000;
+	
 	uint32_t currentTime = 0;
-	uint8_t lastMSSInputs = 0;
-	uint8_t turnoutChangeLockout = (STARTUP_LOCKOUT_TIME_MS)/(LOOP_UPDATE_TIME_MS);
 	uint8_t initValue=0, i=0;
 	
 	// Deal with watchdog first thing
@@ -151,8 +329,8 @@ int main(void)
 	//  PB1 - Output - B Lower Signal - GREEN
 	//  PB0 - Output - A Lower Signal - GREEN
 
-	PORTA = 0b11111111;
-	DDRA  = 0b11111110;
+	PORTA = 0b11111101;
+	DDRA  = 0b11111100;
 
 	PORTB = 0b11111111;
 	DDRB  = 0b01111111;
@@ -179,18 +357,16 @@ int main(void)
 	writeByte(TCA9555_ADDR_001, TCA9555_GPDDR0, 0b00000000);
 	writeByte(TCA9555_ADDR_001, TCA9555_GPDDR1, 0b11000000);
 	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT0, 0b00000000);
-	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT0, 0b00000000);
+	writeByte(TCA9555_ADDR_001, TCA9555_GPOUT1, 0b00000000);
 
 	// Now that the IO expander and such as had a little time to settle
 	//  go get the initial values for options and MSS.  This should avoid
 	//  most of the initial bouncing around as the module starts up.
 
-	initValue = OPTION_COMMON_ANODE | OPTION_B_FOUR_ASPECT; // Default is common anode, four aspect
-	if (readByte(TCA9555_ADDR_000, TCA9555_GPIN0, &i))
+	initValue = OPTION_COMMON_ANODE; // Default is common anode, four aspect
+
+	if (getOptions(&i))
 		initValue = i;
-	// In rev 1.1, common sense moved from the IO expander to GPIO
-	initValue &= ~(OPTION_COMMON_ANODE);
-	initValue |= ((PINA & 0x02)?OPTION_COMMON_ANODE:0);
 
 	initDebounceState8(&optionsDebouncer, initValue);
 
@@ -205,21 +381,121 @@ int main(void)
 	else 
 		signalHeadOptions &= ~SIGNAL_OPTION_COMMON_ANODE;
 
-	initValue = 0; // Default - all lines clear, turnout normal
-	if (readByte(TCA9555_ADDR_000, TCA9555_GPIN1, &i))
+	initValue = 0;
+	if (getMSS(&i, getDebouncedState(&optionsDebouncer) & OPTION_MSS_V2))
 		initValue = i;
 	initDebounceState8(&mssDebouncer, initValue);
 
+	initValue = 0;
+	if (getSwitches(&i))
+		initValue = i;
+	initDebounceState8(&switchDebouncer, initValue);
 
+	if (!testSignalEEPROMValid())
+		initializeSignalEEPROM();
 
 
 	sei();
+
+	// Do an initial LED dance to verify that everything's connected
+	lampTest();
+	
+	ConfigState_t cState = CONFIG_OFF;
 
 	while(1)
 	{
 		wdt_reset();
 
 		currentTime = getMillis();
+
+		if (((uint32_t)currentTime - lastSwitchTime) > SWITCH_UPDATE_TIME_MS)
+		{
+			uint8_t switchesPressed = 0;
+			static uint8_t signal=0;
+			static MSSPortIndication_t ind = 0;
+			static SignalAspect_t upperMockAspect = ASPECT_OFF;
+			static SignalAspect_t lowerMockAspect = ASPECT_OFF;
+			
+			lastSwitchTime = currentTime;
+			if (getSwitches(&i))
+				switchesPressed = debounce8(i, &switchDebouncer);
+
+			if (CONFIG_OFF == cState && getDebouncedState(&optionsDebouncer) & OPTION_E_CONFIG_MODE)
+			{
+				// If Option E (set configuration) is turned on while holding down the left and right buttons
+				//  do a complete configuratio rewrite back to factory
+				if ((0x0F & (~getDebouncedState(&switchDebouncer))) == (SWITCHMASK_LEFT | SWITCHMASK_RIGHT))
+					initializeSignalEEPROM();
+				cState = CONFIG_START;
+			}
+			
+			if (CONFIG_OFF != cState && !(getDebouncedState(&optionsDebouncer) & OPTION_E_CONFIG_MODE))
+				cState = CONFIG_SHUTDOWN;
+
+			// Turn on mock signal and configuration lights if in configuration mode
+			if (CONFIG_OFF != cState)
+				showConfigState(signal, ind, upperMockAspect, lowerMockAspect, flasher);
+
+			switch(cState)
+			{
+				case CONFIG_OFF:
+					break;
+				
+				case CONFIG_START:
+					signal = SIGNAL_A;
+					ind = INDICATION_STOP;
+					cState = CONFIG_RUN;
+					break;
+			
+				case CONFIG_RUN:
+					if (switchesPressed & SWITCHMASK_LEFT)
+						signal = (signal + 1) & 0x01;
+
+					if (switchesPressed & SWITCHMASK_RIGHT)
+						if (++ind >= INDICATION_END)
+							ind = INDICATION_STOP;
+
+					if (SIGNAL_A == signal)
+					{
+						upperMockAspect = eeprom_read_byte(EEPROM_SIGNAL_AU_BASE + ind);
+						lowerMockAspect = eeprom_read_byte(EEPROM_SIGNAL_AL_BASE + ind);
+					} else if (SIGNAL_B == signal) {
+						upperMockAspect = eeprom_read_byte(EEPROM_SIGNAL_BU_BASE + ind);
+						lowerMockAspect = eeprom_read_byte(EEPROM_SIGNAL_BL_BASE + ind);					
+					}
+
+					if (switchesPressed & SWITCHMASK_UPPER_HEAD)
+						if (++upperMockAspect > ASPECT_FL_RED)
+							upperMockAspect = ASPECT_OFF;					
+
+					if (switchesPressed & SWITCHMASK_LOWER_HEAD)
+						if (++lowerMockAspect > ASPECT_FL_RED)
+							lowerMockAspect = ASPECT_OFF;							
+
+					if (SIGNAL_A == signal)
+					{
+						eeprom_update_byte(EEPROM_SIGNAL_AU_BASE + ind, upperMockAspect);
+						eeprom_update_byte(EEPROM_SIGNAL_AL_BASE + ind, lowerMockAspect);
+					} else if (SIGNAL_B == signal) {
+						eeprom_update_byte(EEPROM_SIGNAL_BU_BASE + ind, upperMockAspect);
+						eeprom_update_byte(EEPROM_SIGNAL_BL_BASE + ind, lowerMockAspect);					
+					}
+					break;
+				
+				case CONFIG_SHUTDOWN:
+					writeByte(TCA9555_ADDR_001, TCA9555_GPOUT0, 0);
+					writeByte(TCA9555_ADDR_001, TCA9555_GPOUT1, 0);
+					cState = CONFIG_OFF;
+					break;
+			
+				default:
+					cState = CONFIG_SHUTDOWN;
+					break;			
+			}
+			
+				
+		}
+
 
 		// We really don't need or want updates very often
 		//  50mS or so should be fine.  
@@ -229,18 +505,10 @@ int main(void)
 			uint8_t mssInputs = 0;
 			lastReadTime = currentTime;
 
-			// Read PCA9555
-			//  Note: readByte returns whether we got an ack
-			//  Only use the data on a valid read
-			if (readByte(TCA9555_ADDR_000, TCA9555_GPIN0, &i))
-			{
-				// In rev 1.1, common sense moved from the IO expander to GPIO
-				i &= ~(OPTION_COMMON_ANODE);
-				i |= ((PINA & 0x02)?OPTION_COMMON_ANODE:0);
+			if (getOptions(&i))
 				debounce8(i, &optionsDebouncer);
-			}
-
-			if (readByte(TCA9555_ADDR_000, TCA9555_GPIN1, &i))
+			
+			if (getMSS(&i, getDebouncedState(&optionsDebouncer) & OPTION_MSS_V2))
 				debounce8(i, &mssDebouncer);
 
 			// Read state of MSS bus ports coming in
@@ -248,18 +516,6 @@ int main(void)
 
 			// Read state of option jumpers
 			optionJumpers = getDebouncedState(&optionsDebouncer);
-			// Options A-E are inverted (pulled up if open, low if soldered)
-			//  If they're selected, they're low.  Just invert them here so I
-			//  don't have to constantly think backwards
-			optionJumpers ^= 0b00111110;
-
-			if ((lastMSSInputs ^ mssInputs) & MSS_TO_IS_DIVERGING)
-				turnoutChangeLockout = (TURNOUT_LOCKOUT_TIME_MS) / (LOOP_UPDATE_TIME_MS);
-
-			lastMSSInputs = mssInputs;
-
-			// If you want to fake the optionJumper settings for testing, do it here
-			// optionJumpers |= OPTION_B_FOUR_ASPECT | OPTION_C_SEARCHLIGHT_MODE | OPTION_D_LIMIT_DIVERGING | OPTION_A_APPROACH_LIGHTING;
 
 			// Convert global option bits to signal head option bits
 			if (optionJumpers & OPTION_C_SEARCHLIGHT_MODE)
@@ -272,115 +528,52 @@ int main(void)
 			else 
 				signalHeadOptions &= ~SIGNAL_OPTION_COMMON_ANODE;
 
-			// Calculate the output settings.  Basically, should we set the signal 
-			//  routing relay on (turnout to siding) or off (turnout to main)
-			// In addition, if we are thrown to the siding and Option D (limit diverging indication
-			//  to diverging approach) is set, figure out if we should send the 
-			//  advance approach indication down the line.  
-			{
-				uint8_t updateOutputs = 0;
-				if (mssInputs & MSS_TO_IS_DIVERGING)
-					updateOutputs |= MSS_SET_ROUTE_RELAY;
-
-				if ((optionJumpers & OPTION_D_LIMIT_DIVERGING)
-					&& (mssInputs & MSS_TO_IS_DIVERGING) && !(mssInputs & MSS_POINTS_A_OUT) )
-					updateOutputs |= MSS_SET_FORCE_POINTS_AA;
-					
-				writeByte(TCA9555_ADDR_000, TCA9555_GPOUT0, updateOutputs);
-			}
-
-			// If the turnout just changed, we need to give the relays time to settle down
-			//  and the new signal states to propagate through the debouncer.  Otherwise, calculate
-			//  the new aspects based on what came out of the debouncers
-
-			if (!turnoutChangeLockout)
-				calculateAspects(mssInputs, optionJumpers);
-			else
-				turnoutChangeLockout--;
+			calculateAspects(mssInputs, optionJumpers);
 		}
 	}
 }
+
 
 
 void calculateAspects(uint8_t mssInputs, uint8_t optionJumpers)
 {
 	SignalAspect_t aspectAU = ASPECT_RED;
 	SignalAspect_t aspectAL = ASPECT_RED;
-	SignalAspect_t aspectB = ASPECT_RED;
-	SignalAspect_t aspectC = ASPECT_RED;
+	SignalAspect_t aspectBU = ASPECT_RED;
+	SignalAspect_t aspectBL = ASPECT_RED;
 
+	MSSPortIndication_t portA = INDICATION_STOP;
+	MSSPortIndication_t portB = INDICATION_STOP;
+	
 	// Calculate signal aspects directly, since we don't have neatly-terminated
 	//  MSS busses but rather have to glean states from combinations of things.
 
-	// SIGNAL A - Points End
+	// Two steps.  Convert wires to indication state, convert indication state to aspects
+	portA = mssPortWiresToIndication(mssInputs & MSS_A_S, mssInputs & MSS_A_A_IN, mssInputs & MSS_A_AA_IN, mssInputs & MSS_A_AD_IN);
+	portB = mssPortWiresToIndication(mssInputs & MSS_B_S, mssInputs & MSS_B_A_IN, mssInputs & MSS_B_AA_IN, mssInputs & MSS_B_AD_IN);
 
-	if (mssInputs & MSS_TO_IS_DIVERGING)
-	{
-		// Diverging point end signals
-		aspectAU = ASPECT_RED;
 	
-		if (mssInputs & MSS_POINTS_A_OUT)
-			aspectAL = ASPECT_RED;
-		else if ((mssInputs & MSS_POINTS_AA_OUT) || (optionJumpers & OPTION_D_LIMIT_DIVERGING))
-			aspectAL = ASPECT_YELLOW;
-		else if ((mssInputs & MSS_SIDING_AA_IN) && (optionJumpers & OPTION_B_FOUR_ASPECT))
-			aspectAL = ASPECT_FL_YELLOW;
-		else
-			aspectAL = ASPECT_GREEN;
-
-	} else {
-		aspectAL = ASPECT_RED;
-
-		if (mssInputs & MSS_POINTS_A_OUT)
-			aspectAU = ASPECT_RED;
-		else if (mssInputs & MSS_POINTS_AA_OUT)
-			aspectAU = ASPECT_YELLOW;
-		else if ((mssInputs & MSS_MAIN_AA_IN ) && (optionJumpers & OPTION_B_FOUR_ASPECT))
-			aspectAU = ASPECT_FL_YELLOW;
-		else
-			aspectAU = ASPECT_GREEN;
-	}
-
-	// SIGNAL B - Frog End, Normal (Main)
-
-	if ((mssInputs & MSS_POINTS_S) || (mssInputs & MSS_TO_IS_DIVERGING))
-		aspectB = ASPECT_RED;
-	else if (mssInputs & MSS_POINTS_A_IN)
-		aspectB = ASPECT_YELLOW;
-	else if ((mssInputs & MSS_POINTS_AA_IN) && (optionJumpers & OPTION_B_FOUR_ASPECT))
-		aspectB = ASPECT_FL_YELLOW;
-	else
-		aspectB = ASPECT_GREEN;
-
-	// SIGNAL C - Frog End, Diverging/Reverse (Siding)
-
-	if (mssInputs & MSS_POINTS_S || !(mssInputs & MSS_TO_IS_DIVERGING))
-		aspectC = ASPECT_RED;
-	else if (mssInputs & MSS_POINTS_A_IN)
-		aspectC = ASPECT_YELLOW;
-	else if ((mssInputs & MSS_POINTS_AA_IN) && (optionJumpers & OPTION_B_FOUR_ASPECT))
-		aspectC = ASPECT_FL_YELLOW;
-	else
-		aspectC = ASPECT_GREEN;
+	aspectAU = eeprom_read_byte(EEPROM_SIGNAL_AU_BASE + portB);
+	aspectAL = eeprom_read_byte(EEPROM_SIGNAL_AL_BASE + portB);
+	aspectBU = eeprom_read_byte(EEPROM_SIGNAL_BU_BASE + portA);
+	aspectBL = eeprom_read_byte(EEPROM_SIGNAL_BL_BASE + portA);
 
 
 	// Handle approach lighting.  If we're approach lit, turn everything off unless there's
 	//  something in an adjacent block
 	if (optionJumpers & OPTION_A_APPROACH_LIGHTING)
 	{
-		if (!((mssInputs & MSS_POINTS_S) || (optionJumpers & MSS_APPROACH_LT_INPUT)))
+		if (!(mssInputs & (MSS_A_S | MSS_B_S)))
 		{
 			// If nothing is in any of the adjacent blocks, turn signals off
-			aspectAL = aspectAU = aspectB = aspectC = ASPECT_OFF;
+			aspectAL = aspectAU = aspectBL = aspectBU = ASPECT_OFF;
 		}
 	}
 
-
-
 	signalHeadAspectSet(&signalAU, aspectAU);
 	signalHeadAspectSet(&signalAL, aspectAL);
-	signalHeadAspectSet(&signalB, aspectB);
-	signalHeadAspectSet(&signalC, aspectC);
+	signalHeadAspectSet(&signalBU, aspectBU);
+	signalHeadAspectSet(&signalBL, aspectBL);
 }
 
 

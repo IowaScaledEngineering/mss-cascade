@@ -44,11 +44,13 @@ LICENSE:
 
 typedef enum 
 {
-	INDICATION_STOP               = 0,
-	INDICATION_APPROACH           = 1,
-	INDICATION_APPROACH_DIVERGING = 2,
-	INDICATION_ADVANCE_APPROACH   = 3,
-	INDICATION_CLEAR              = 4
+	INDICATION_STOP                  = 0,
+	INDICATION_APPROACH              = 1,
+	INDICATION_ADVANCE_APPROACH      = 2,
+	INDICATION_APPROACH_DIVERGING_AA = 3,
+	INDICATION_APPROACH_DIVERGING    = 4,
+	INDICATION_CLEAR                 = 5,
+	INDICATION_END
 } MSSPortIndication_t;
 
 typedef struct
@@ -57,6 +59,8 @@ typedef struct
 	DebounceState8_t debounce;
 } MSSPort_t;
 
+
+MSSPortIndication_t mssPortWiresToIndication(bool S, bool A, bool AA, bool AD);
 
 void mssReadPort(MSSPort_t* port, volatile uint8_t* adjacentPort, uint8_t adjacentMask,
 	volatile uint8_t* approachPort, uint8_t approachMask,
