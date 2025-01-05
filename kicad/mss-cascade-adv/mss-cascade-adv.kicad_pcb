@@ -1869,10 +1869,10 @@
       (net 40 "Net-(J13-Pad7)") (pintype "passive") (tstamp 24723031-724d-43cc-9a55-f536f364524d))
     (pad "8" thru_hole circle (at 8.89 -2.54) (size 1.5 1.5) (drill 0.76) (layers *.Cu *.Mask)
       (net 70 "/B_DIV_APRCH") (pintype "passive") (tstamp 0bd6a7cb-4c22-4e30-b0a6-ea621d3e5dc4))
-    (model "${KICAD6_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_54602-x08_Horizontal.wrl"
-      (offset (xyz 0 0 0))
+    (model ":ISE_3DModels:RJ45_Amphenol_54602-908LF.step"
+      (offset (xyz 4.445 -6.35 0))
       (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 0))
+      (rotate (xyz -90 0 0))
     )
   )
 
@@ -5339,10 +5339,10 @@
       (net 40 "Net-(J13-Pad7)") (pintype "passive") (tstamp 3d44610c-9bad-4742-9af1-ae7aa91c5bf2))
     (pad "8" thru_hole circle (at 8.89 -2.54 180) (size 1.5 1.5) (drill 0.76) (layers *.Cu *.Mask)
       (net 75 "/A_DIV_APRCH") (pintype "passive") (tstamp a3dd0033-de87-449d-a5cd-e0289b064d2b))
-    (model "${KICAD6_3DMODEL_DIR}/Connector_RJ.3dshapes/RJ45_Amphenol_54602-x08_Horizontal.wrl"
-      (offset (xyz 0 0 0))
+    (model ":ISE_3DModels:RJ45_Amphenol_54602-908LF.step"
+      (offset (xyz 4.445 -6.35 0))
       (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 0))
+      (rotate (xyz -90 0 0))
     )
   )
 
