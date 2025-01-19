@@ -34,7 +34,8 @@ bool mssPortApproach(MSSPort_t* port)
 	switch(port->indication)
 	{
 		case INDICATION_STOP:
-		case INDICATION_APPROACH:
+// Enable for 2-block approach lighting
+//		case INDICATION_APPROACH:
 			return true;
 
 		default:
