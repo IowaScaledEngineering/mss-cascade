@@ -101,7 +101,7 @@ void mssIndicationToSingleHeadAspect(MSSPortIndication_t indication, SignalAspec
 	{
 		case INDICATION_STOP:
 		default:
-			*aspect = ASPECT_RED;
+			*aspect = ASPECT_FL_RED;
 			break;
 
 		case INDICATION_APPROACH:
