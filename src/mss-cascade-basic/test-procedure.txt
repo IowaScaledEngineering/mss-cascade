@@ -1,0 +1,27 @@
+MSS-CASCADE-BASIC test
+
+1) Program at *5V* from mss-cascade/src/mss-cascade-basic/program script
+
+2) Set CA/CC switch to cathode
+
+3) Plug in signal into each port and debugger into each port
+
+4) Connect power, verify green light comes on
+
+5) Flip CA/CC switch and all three LEDs should light for a second, and then go to green.
+
+6) Set “advance approach in” on both debuggers if not already set (safe to just leave on)
+
+7) Use tweezers to short switch A, verify signals go out after ~1s
+
+8) Use tweezers to short switch B, verify signals go flashing yellow after ~1s
+
+9) Set approach in on one debugger, verify advance approach out lights on the other and signal goes yellow
+
+10) Set local block in on one debugger, verify approach out lights on the other and signal goes red
+
+11) Clear all debugger inputs and repeat the last two steps in the opposite direction
+
+12) Plug sensor tester into all three sensor ports.  Verify power LED lights.  
+    Push button, verify relevant local block occupancy lights on the debugger and 
+    signal goes red (IR sensor will trigger A & B, BD1 A & B will just trigger their respective side)
